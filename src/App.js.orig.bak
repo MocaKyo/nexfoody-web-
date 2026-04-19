@@ -1,0 +1,157 @@
+// src/App.js
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import PremiosGanhadores from "./pages/PremiosGanhadores";
+import PerfilCliente from "./pages/PerfilCliente";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { StoreProvider, useStore } from "./contexts/StoreContext";
+import Layout from "./components/Layout";
+import { useEffect } from "react";
+import { doc, setDoc, serverTimestamp, increment, getDoc } from "firebase/firestore";
+import { db } from "./lib/firebase";
+import Welcome from "./pages/Welcome";
+import Cardapio from "./pages/Cardapio";
+import Carrinho from "./pages/Carrinho";
+import MeusPontos from "./pages/MeusPontos";
+import Historico from "./pages/Historico";
+import Conta from "./pages/Conta";
+import Admin from "./pages/Admin";
+import KDS from "./pages/KDS";
+import Entregador from "./pages/Entregador";
+import Mesa from "./pages/Mesa";
+import PagamentoSucesso from "./pages/PagamentoSucesso";
+import PerfilLoja from "./pages/PerfilLoja";
+import FeedLoja from "./pages/FeedLoja";
+import Favoritos from "./pages/Favoritos";
+import RankingFas from "./components/RankingFas";
+import Social from "./pages/Social";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Cupons from "./pages/Cupons";
+import FotoPage from "./pages/FotoPage";
+
+// Aplica tema dark/light no document root
+function ThemeManager() {
+  const { config } = useStore();
+  useEffect(() => {
+    document.documentElement.setAttribute("data-tema", config.tema || "dark");
+  }, [config.tema]);
+  return null;
+}
+
+// Hook de rastreamento de visitantes
+function useVisitorTracking() {
+  useEffect(() => {
+    const trackVisit = async () => {
+      try {
+        const hoje = new Date().toISOString().split("T")[0];
+        const sessionKey = `visited_${hoje}`;
+        const onlineKey = `online_${Date.now()}_${Math.random()}`;
+
+        // Registrar visita única do dia
+        if (!sessionStorage.getItem(sessionKey)) {
+          sessionStorage.setItem(sessionKey, "1");
+          await setDoc(doc(db, "analytics", hoje), {
+            data: hoje,
+            visitas: increment(1),
+            updatedAt: serverTimestamp(),
+          }, { merge: true });
+        }
+
+        // Registrar presença online (expira em 2 min)
+        const onlineRef = doc(db, "analytics_online", onlineKey);
+        await setDoc(onlineRef, {
+          timestamp: serverTimestamp(),
+          pagina: window.location.pathname,
+          userAgent: navigator.userAgent.includes("Mobile") ? "mobile" : "desktop",
+        });
+
+        // Heartbeat a cada 60s para manter online
+        const interval = setInterval(async () => {
+          await setDoc(onlineRef, {
+            timestamp: serverTimestamp(),
+            pagina: window.location.pathname,
+            userAgent: navigator.userAgent.includes("Mobile") ? "mobile" : "desktop",
+          });
+        }, 60000);
+
+        // Remover ao sair
+        const cleanup = async () => {
+          clearInterval(interval);
+          try { await setDoc(onlineRef, { timestamp: serverTimestamp(), saiu: true }, { merge: true }); } catch {}
+        };
+        window.addEventListener("beforeunload", cleanup);
+        return () => { cleanup(); window.removeEventListener("beforeunload", cleanup); };
+      } catch (e) { console.warn("Analytics:", e.message); }
+    };
+    trackVisit();
+  }, []);
+}
+
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="loading-screen"><div className="spinner" /></div>;
+  if (!user) return <Navigate to="/welcome" replace />;
+  return children;
+}
+
+function AdminRoute({ children }) {
+  const { user, userData, loading } = useAuth();
+  if (loading) return <div className="loading-screen"><div className="spinner" /></div>;
+  if (!user) return <Navigate to="/welcome" replace />;
+  if (userData?.role !== "admin") return <Navigate to="/" replace />;
+  return children;
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/welcome" element={<Welcome />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/cadastro" element={<Register />} />
+      {/* KDS — tela separada sem Layout */}
+      <Route path="/kds" element={<AdminRoute><KDS /></AdminRoute>} />
+      {/* Entregador — tela separada sem Layout */}
+      <Route path="/entregador/:entregadorId" element={<Entregador />} />
+      {/* Mesa — QR Code */}
+      <Route path="/mesa/:mesaId" element={<Mesa />} />
+      {/* Perfil da loja */}
+      <Route path="/perfil" element={<ProtectedRoute><PerfilLoja /></ProtectedRoute>} />
+      <Route path="/feed" element={<FeedLoja />} />
+      <Route path="/favoritos" element={<ProtectedRoute><Favoritos /></ProtectedRoute>} />
+      <Route path="/ranking" element={<RankingFas />} />
+      {/* Pagamento Mercado Pago */}
+      <Route path="/pagamento/sucesso" element={<PagamentoSucesso />} />
+      <Route path="/pagamento/falha" element={<PagamentoSucesso />} />
+      <Route path="/pagamento/pendente" element={<PagamentoSucesso />} />
+      <Route path="/" element={<Layout />}>
+        <Route index element={<Cardapio />} />
+        <Route path="carrinho" element={<Carrinho />} />
+        <Route path="pontos" element={<ProtectedRoute><MeusPontos /></ProtectedRoute>} />
+        <Route path="historico" element={<ProtectedRoute><Historico /></ProtectedRoute>} />
+        <Route path="conta" element={<ProtectedRoute><Conta /></ProtectedRoute>} />
+        <Route path="admin" element={<AdminRoute><Admin /></AdminRoute>} />
+      </Route>
+      <Route path="*" element={<Navigate to="/welcome" replace />} />
+      <Route path="/premios" element={<PremiosGanhadores />} />
+      <Route path="/perfil/:userId" element={<PerfilCliente />} />
+      <Route path="/meu-perfil" element={<PerfilCliente />} />
+      <Route path="/cupons" element={<Cupons />} />
+      <Route path="/foto/:foto" element={<FotoPage />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  useVisitorTracking();
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <StoreProvider>
+          <ThemeManager />
+          <AppRoutes />
+        </StoreProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
