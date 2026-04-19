@@ -441,7 +441,7 @@ const toggleFavorito = async (produto, e) => {
             <img src={config.logoUrl || LOGO_URL} alt="Logo" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover", border: "2px solid color-mix(in srgb, var(--loja-cor-primaria, #f5c518) 40%, transparent)", boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }} />
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ fontFamily: "var(--loja-fonte, 'Fraunces', serif)", fontSize: "1.2rem", fontWeight: 700, color: "var(--loja-banner-texto, #ffffff)", display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ fontFamily: "var(--loja-fonte, 'Fraunces', serif)", fontSize: "1.2rem", fontWeight: 700, color: "#f5c518", display: "flex", alignItems: "center", gap: 6 }}>
                   {config.nomeLoja || "Açaí Puro Gosto"}
                   {(() => {
                     const totalEstrelas = Object.values(mediasAvaliacoes).reduce((acc, m) => acc + m.total, 0);
@@ -496,7 +496,7 @@ const toggleFavorito = async (produto, e) => {
               🗺️ Area - entrega
             </button>
           )}
-          <button onClick={() => navigate("/feed")} style={{ display: "flex", alignItems: "center", gap: 5, background: "color-mix(in srgb, var(--loja-banner-texto, #fff) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--loja-banner-texto, #fff) 30%, transparent)", borderRadius: 50, padding: "5px 12px", cursor: "pointer", fontSize: "0.72rem", color: "var(--loja-banner-texto, #fff)", fontFamily: "'Outfit', sans-serif" }}>
+          <button onClick={() => navigate("/feed")} style={{ display: "flex", alignItems: "center", gap: 5, background: "linear-gradient(135deg, rgba(193,53,132,0.2), rgba(131,58,180,0.2))", border: "1px solid rgba(193,53,132,0.3)", borderRadius: 50, padding: "5px 12px", cursor: "pointer", fontSize: "0.72rem", color: "#f472b6", fontFamily: "'Outfit', sans-serif" }}>
             📸 {toSlug(config.nomeLoja)}page
           </button>
           <button onClick={() => navigate(slugParam ? `/loja/${slugParam}/perfil` : "/perfil")} style={{ display: "flex", alignItems: "center", gap: 5, background: "color-mix(in srgb, var(--loja-banner-texto, #fff) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--loja-banner-texto, #fff) 30%, transparent)", borderRadius: 50, padding: "5px 12px", cursor: "pointer", fontSize: "0.72rem", color: "var(--loja-banner-texto, #fff)", fontFamily: "'Outfit', sans-serif" }}>Perfil/horarios</button>
@@ -630,7 +630,7 @@ const toggleFavorito = async (produto, e) => {
                         )}
                       </div>
                       {!isCatalogo && (
-                        <button onClick={e => { e.stopPropagation(); setProdutoModal(produto); }} style={{ width: 28, height: 28, background: !isAberto || esgotado ? "var(--bg3)" : "var(--loja-cor-primaria)", border: "none", borderRadius: "50%", color: !isAberto || esgotado ? "var(--text3)" : "var(--loja-btn-texto, #fff)", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <button onClick={e => { e.stopPropagation(); setProdutoModal(produto); }} style={{ width: 28, height: 28, background: !isAberto || esgotado ? "var(--bg3)" : "linear-gradient(135deg, var(--purple2), var(--purple))", border: "none", borderRadius: "50%", color: !isAberto || esgotado ? "var(--text3)" : "#fff", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           {!isAberto ? "🔒" : esgotado ? "✕" : "+"}
                         </button>
                       )}
@@ -683,7 +683,7 @@ const toggleFavorito = async (produto, e) => {
                           )}
                         </div>
                         {!isCatalogo && (
-                          <button onClick={e => { e.stopPropagation(); setProdutoModal(produto); }} style={{ width: 32, height: 32, background: !isAberto || esgotado ? "var(--bg3)" : "var(--loja-cor-primaria)", border: "none", borderRadius: "50%", color: !isAberto || esgotado ? "var(--text3)" : "var(--loja-btn-texto, #fff)", fontSize: "1rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <button onClick={e => { e.stopPropagation(); setProdutoModal(produto); }} style={{ width: 32, height: 32, background: !isAberto || esgotado ? "var(--bg3)" : "linear-gradient(135deg, var(--purple2), var(--purple))", border: "none", borderRadius: "50%", color: !isAberto || esgotado ? "var(--text3)" : "#fff", fontSize: "1rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                             {!isAberto ? "🔒" : esgotado ? "✕" : "+"}
                           </button>
                         )}
@@ -754,20 +754,20 @@ const toggleFavorito = async (produto, e) => {
       )}
 
       {/* ORDENAÇÃO FIXA */}
-      <div style={{ position: "fixed", bottom: 50, left: 0, right: 0, zIndex: 40, background: "var(--loja-nav-bg, rgba(13,5,24,0.97))", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", borderTop: "1px solid var(--loja-nav-border, var(--border))", padding: "6px 16px", display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", transform: "translateZ(0)" }}>
+      <div style={{ position: "fixed", bottom: 50, left: 0, right: 0, zIndex: 40, background: "rgba(13,5,24,0.97)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", borderTop: "1px solid var(--border)", padding: "6px 16px", display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", transform: "translateZ(0)" }}>
         {getFiltrosOrdenados(config).map(filtro => {
           if (filtro.tipo === "nav") {
-            return <button key={filtro.id} onClick={() => navigate(filtro.path)} style={{ flexShrink: 0, padding: "5px 12px", background: "color-mix(in srgb, var(--loja-cor-primaria) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--loja-cor-primaria) 30%, transparent)", borderRadius: 50, cursor: "pointer", color: "var(--loja-nav-texto, var(--text3))", fontFamily: "'Outfit', sans-serif", fontSize: "0.72rem", fontWeight: 600, transition: "all 0.3s" }}>{filtro.label}</button>;
+            return <button key={filtro.id} onClick={() => navigate(filtro.path)} style={{ flexShrink: 0, padding: "5px 12px", background: userScrolled ? "rgba(245,197,24,0.1)" : "transparent", border: `1px solid ${userScrolled ? "rgba(245,197,24,0.25)" : "rgba(255,255,255,0.08)"}`, borderRadius: 50, cursor: "pointer", color: userScrolled ? "var(--gold)" : "rgba(255,255,255,0.2)", fontFamily: "'Outfit', sans-serif", fontSize: "0.72rem", fontWeight: 600, transition: "all 0.3s" }}>{filtro.label}</button>;
           }
           const ativo = ordenacao === filtro.id;
-          return <button key={filtro.id} onClick={() => setOrdenacao(filtro.id)} style={{ flexShrink: 0, padding: "5px 12px", background: ativo ? "color-mix(in srgb, var(--loja-cor-primaria) 15%, transparent)" : "transparent", border: `1px solid ${ativo ? "color-mix(in srgb, var(--loja-cor-primaria) 50%, transparent)" : "var(--loja-nav-border, var(--border))"}`, borderRadius: 50, cursor: "pointer", color: ativo ? "var(--loja-nav-ativo, var(--gold))" : "var(--loja-nav-texto, var(--text3))", fontFamily: "'Outfit', sans-serif", fontSize: "0.72rem", fontWeight: 600, transition: "all 0.3s" }}>{filtro.label}</button>;
+          return <button key={filtro.id} onClick={() => setOrdenacao(filtro.id)} style={{ flexShrink: 0, padding: "5px 12px", background: ativo ? "rgba(245,197,24,0.15)" : userScrolled ? "rgba(255,255,255,0.06)" : "transparent", border: `1px solid ${ativo ? "rgba(245,197,24,0.5)" : userScrolled ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.06)"}`, borderRadius: 50, cursor: "pointer", color: ativo ? "var(--gold)" : userScrolled ? "var(--text3)" : "rgba(255,255,255,0.18)", fontFamily: "'Outfit', sans-serif", fontSize: "0.72rem", fontWeight: 600, transition: "all 0.3s" }}>{filtro.label}</button>;
         })}
       </div>
 
       {/* BOTÃO CARRINHO — só no modo delivery */}
       {!isCatalogo && cartCount() > 0 && (
         <div style={{ position: "fixed", bottom: 105, left: "50%", transform: "translateX(-50%)", zIndex: 50 }}>
-          <button onClick={() => navigate("/carrinho")} style={{ background: "var(--loja-cor-primaria)", border: "none", borderRadius: 50, color: "var(--loja-btn-texto, #fff)", fontWeight: 700, fontSize: "0.88rem", padding: "11px 24px", cursor: "pointer", fontFamily: "'Outfit', sans-serif", boxShadow: "0 6px 20px rgba(0,0,0,0.3)", display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
+          <button onClick={() => navigate("/carrinho")} style={{ background: "linear-gradient(135deg, var(--purple2), var(--purple))", border: "none", borderRadius: 50, color: "#fff", fontWeight: 700, fontSize: "0.88rem", padding: "11px 24px", cursor: "pointer", fontFamily: "'Outfit', sans-serif", boxShadow: "0 6px 20px rgba(90,45,145,0.5)", display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
             🛒 Ver pedido ({cartCount()} {cartCount() === 1 ? "item" : "itens"})
           </button>
         </div>
@@ -803,10 +803,10 @@ const toggleFavorito = async (produto, e) => {
             }}
             style={{
               width: 52, height: 52,
-              background: "var(--loja-cor-primaria)",
+              background: "linear-gradient(135deg, #6c3fb5, #9b59b6)",
               border: "none", borderRadius: "50%", cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "22px", boxShadow: "0 4px 18px rgba(0,0,0,0.35)",
+              fontSize: "22px", boxShadow: "0 4px 18px rgba(108,63,181,0.6)",
             }}
             title="Pedir pelo Chat"
           >
