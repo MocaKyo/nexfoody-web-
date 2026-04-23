@@ -59,7 +59,7 @@ export default function AdminSetup() {
             </button>
           )}
           {userData?.role === "admin" && (
-            <button onClick={() => navigate("/lojista/dashboard")} style={{ padding: "10px 24px", background: "transparent", color: "#60a5fa", border: "1px solid #60a5fa", borderRadius: 10, fontWeight: 700, cursor: "pointer" }}>
+            <button onClick={() => userData?.lojistaOf ? navigate(`/loja/${userData.lojistaOf}/admin`) : navigate("/admin/lojas")} style={{ padding: "10px 24px", background: "transparent", color: "#60a5fa", border: "1px solid #60a5fa", borderRadius: 10, fontWeight: 700, cursor: "pointer" }}>
               Ir para Dashboard da Loja
             </button>
           )}

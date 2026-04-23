@@ -54,6 +54,7 @@ export default function TenantLayout({ adminContent }: TenantLayoutProps) {
 
   const clientNavItems = [
     { path: "/", icon: "🍽️", label: "Cardápio" },
+    { path: "/feed", icon: "📱", label: "Feed" },
     { path: "/carrinho", icon: "🛒", label: "Pedido" },
     { path: "/pontos", icon: "⭐", label: "Pontos" },
     { path: "/historico", icon: "📋", label: "Histórico" },
@@ -72,7 +73,7 @@ export default function TenantLayout({ adminContent }: TenantLayoutProps) {
   const navItems = adminContent ? adminNavItems : clientNavItems;
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${adminContent ? " admin-mode" : ""}`}>
       {/* Pause banner */}
       {(!tenantConfig?.cardapioAtivo) && (
         <div className="pause-banner">
@@ -116,30 +117,52 @@ export default function TenantLayout({ adminContent }: TenantLayoutProps) {
               👁️ Ver loja
             </Link>
           ) : (
-            <Link
-              to={`/loja/${slug}/ranking`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "4px 10px",
-                background: "var(--gold-dim)",
-                border: "1px solid rgba(245,197,24,0.3)",
-                borderRadius: 20,
-                fontSize: "0.72rem",
-                fontWeight: 700,
-                color: "var(--gold)",
-                textDecoration: "none",
-              }}
-            >
-              🏆 {(userData?.rankingPts || 0).toLocaleString()} pts
-            </Link>
+            <>
+              {(tenantConfig?.paginaFeed || slug) && (
+                <Link
+                  to={`/loja/${slug}/feed`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "4px 10px",
+                    background: "rgba(245,197,24,.1)",
+                    border: "1px solid rgba(245,197,24,.3)",
+                    borderRadius: 20,
+                    fontSize: "0.72rem",
+                    fontWeight: 700,
+                    color: "var(--gold)",
+                    textDecoration: "none",
+                  }}
+                >
+                  📱 @{tenantConfig?.paginaFeed || slug}
+                </Link>
+              )}
+              <Link
+                to="/rankings-hub"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "4px 10px",
+                  background: "rgba(124,58,237,.1)",
+                  border: "1px solid rgba(124,58,237,.3)",
+                  borderRadius: 20,
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  color: "#a855f7",
+                  textDecoration: "none",
+                }}
+              >
+                🏆 Ranking
+              </Link>
+            </>
           )}
         </div>
       </div>
 
       {/* Main content */}
-      <div className="main-content">
+      <div className={`main-content${adminContent ? " admin-full" : ""}`}>
         {adminContent ? <LojistaDashboard /> : <Outlet />}
       </div>
 

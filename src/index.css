@@ -28,25 +28,25 @@
 
 /* Light theme */
 [data-tema="light"] {
-  --bg:        #f5f0f8;
-  --bg2:       #ece6f5;
-  --bg3:       #ddd5f0;
-  --surface:   #c9bce0;
-  --surface2:  #b8a5d4;
-  --border:    rgba(100, 60, 180, 0.18);
-  --border2:   rgba(100, 60, 180, 0.35);
-  --gold:      #e8a020;
-  --gold2:     #d09010;
-  --gold-dim:  rgba(232, 160, 32, 0.12);
-  --purple:    #7c3aed;
-  --purple2:   #8b5cf6;
-  --green:     #16a34a;
-  --green2:    #15803d;
+  --bg:        #ffffff;
+  --bg2:       #f0f0f0;
+  --bg3:       #e4e4e4;
+  --surface:   #d4d4d4;
+  --surface2:  #c8c8c8;
+  --border:    rgba(0, 0, 0, 0.1);
+  --border2:   rgba(0, 0, 0, 0.2);
+  --gold:      #d97706;
+  --gold2:     #b45309;
+  --gold-dim:  rgba(217, 119, 6, 0.12);
+  --purple:    #6d28d9;
+  --purple2:   #7c3aed;
+  --green:     #15803d;
+  --green2:    #166534;
   --red:       #dc2626;
-  --text:      #1a1030;
-  --text2:     #4a3860;
-  --text3:     #7a6890;
-  --shadow:    0 8px 32px rgba(100,60,180,0.15);
+  --text:      #111111;
+  --text2:     #374151;
+  --text3:     #6b7280;
+  --shadow:    0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -92,7 +92,24 @@ body::before {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ===== LAYOUT ===== */
-.app-shell { display: flex; flex-direction: column; min-height: 100vh; }
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+}
+
+.app-shell .main-content {
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+.app-shell.admin-mode .main-content {
+  max-width: 100%;
+}
 
 .topbar {
   position: sticky; top: 0; z-index: 100;
@@ -128,9 +145,14 @@ body::before {
 .main-content {
   flex: 1;
   padding: 0 0 80px;
-  max-width: 640px;
+  max-width: 720px;
   margin: 0 auto;
   width: 100%;
+}
+
+/* Admin pages — full width, no center limit */
+.main-content.admin-full {
+  max-width: 100%;
 }
 
 /* ===== BOTTOM NAV ===== */
@@ -174,7 +196,10 @@ body::before {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ===== TYPOGRAPHY ===== */
+@keyframes cardPulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(239,68,68,0.3), 0 0 12px rgba(239,68,68,0.2); }
+  50%       { box-shadow: 0 0 0 3px rgba(239,68,68,0.5), 0 0 24px rgba(239,68,68,0.4); }
+}
 .display-title {
   font-family: 'Fraunces', serif;
   font-size: 1.9rem; font-weight: 900;

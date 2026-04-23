@@ -8,8 +8,11 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
+  fetchSignInMethodsForEmail,
+  updateCurrentUser,
+  signOut,
 } from "firebase/auth";
-import { doc, onSnapshot, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
+import { doc, onSnapshot, setDoc, serverTimestamp, getDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 import type { UserData } from "../types/tenant";
 
@@ -19,10 +22,12 @@ interface AuthContextValue {
   loading: boolean;
   isAdmin: boolean;
   isLojista: boolean;
+  isFuncionario: boolean;
   register: (nome: string, email: string, telefone: string, password: string) => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
+  login: (email: string, password: string, redirectTo?: string) => Promise<void>;
+  loginWithGoogle: (redirectTo?: string) => Promise<void>;
   logout: () => Promise<void>;
+  criarFuncionario: (nome: string, email: string, telefone: string, tenantId: string, papel: string, ownerUid: string, senha: string, endereco?: string, contatosEmergencia?: Array<{ nome: string; telefone: string; tipo: string }>) => Promise<{ jaExistia: boolean; uid?: string }>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -31,10 +36,12 @@ const AuthContext = createContext<AuthContextValue>({
   loading: true,
   isAdmin: false,
   isLojista: false,
+  isFuncionario: false,
   register: async () => {},
   login: async () => {},
   loginWithGoogle: async () => {},
   logout: async () => {},
+  criarFuncionario: async () => ({ jaExistia: false }),
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -90,11 +97,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, redirectTo?: string) => {
     await signInWithEmailAndPassword(auth, email, password);
+    if (redirectTo) {
+      window.location.href = redirectTo;
+    }
   };
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async (redirectTo?: string) => {
     const provider = new GoogleAuthProvider();
     const cred = await signInWithPopup(auth, provider);
 
@@ -116,14 +126,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         createdAt: serverTimestamp(),
       });
     }
+    if (redirectTo) {
+      window.location.href = redirectTo;
+    }
   };
 
   const logout = async () => {
     await firebaseSignOut(auth);
   };
 
+  const criarFuncionario = async (nome: string, email: string, telefone: string, tenantId: string, papel: string, ownerUid: string, senha: string, endereco?: string, contatosEmergencia?: Array<{ nome: string; telefone: string; tipo: string }>) => {
+    const internalEmail = `func_${Date.now()}@nexfoody.internal`;
+    const originalUser = auth.currentUser;
+    console.log("[criarFuncionario] ini", { nome, telefone, tenantId, papel, originalUser: originalUser?.uid });
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, internalEmail, "00" + senha);
+      console.log("[criarFuncionario] auth created", cred.user.uid);
+      await updateProfile(cred.user, { displayName: nome });
+      await setDoc(doc(db, "users", cred.user.uid), {
+        nome,
+        email,
+        telefone,
+        emailFirebase: internalEmail,
+        pinHash: senha,
+        pontos: 0,
+        rankingPts: 0,
+        cashback: 0,
+        role: "funcionario",
+        following: [],
+        favoritos: [],
+        tenantId,
+        papel,
+        criadoPor: ownerUid,
+        createdAt: serverTimestamp(),
+      });
+      console.log("[criarFuncionario] firestore saved");
+      await signOut(auth);
+      console.log("[criarFuncionario] signed out func");
+      if (originalUser) {
+        await updateCurrentUser(auth, originalUser);
+        console.log("[criarFuncionario] restored lojista", originalUser.uid);
+      }
+      return { jaExistia: false, uid: cred.user.uid };
+    } catch (err: unknown) {
+      console.error("[criarFuncionario] ERROR", err);
+      if (originalUser) await updateCurrentUser(auth, originalUser).catch(() => {});
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (errMsg.includes("email-already-in-use") || errMsg.includes("INVALID_EMAIL")) {
+        const existingQ = query(collection(db, "users"), where("email", "==", email));
+        const existingSnap = await getDocs(existingQ);
+        if (!existingSnap.empty) {
+          await updateDoc(doc(db, "users", existingSnap.docs[0].id), {
+            tenantId,
+            papel,
+            criadoPor: ownerUid,
+            role: "funcionario",
+            telefone: telefone || existingSnap.docs[0].data().telefone,
+            pinHash: senha,
+          });
+          return { jaExistia: true, uid: existingSnap.docs[0].id };
+        }
+      }
+      throw err;
+    }
+  };
+
   const isAdmin = userData?.role === "admin";
   const isLojista = userData?.role === "lojista";
+  const isFuncionario = userData?.role === "funcionario";
 
   return (
     <AuthContext.Provider
@@ -133,10 +203,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         isAdmin,
         isLojista,
+        isFuncionario,
         register,
         login,
         loginWithGoogle,
         logout,
+        criarFuncionario,
       }}
     >
       {children}

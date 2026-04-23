@@ -159,7 +159,7 @@ const toggleFavorito = async (produto, e) => {
   } catch {}
   }
 
-  const toggleQueroProvar = (produto, e) => {
+  const toggleQueroProvar = async (produto, e) => {
     e.stopPropagation();
     if (!user?.uid) { toast("Faça login para salvar desejos", "error"); return; }
     const chave = `queroProvar_${user.uid}`;
@@ -167,9 +167,17 @@ const toggleFavorito = async (produto, e) => {
     const jaExiste = atual.some(d => d.produtoId === produto.id);
     const novo = jaExiste
       ? atual.filter(d => d.produtoId !== produto.id)
-      : [{ id: Date.now(), produtoId: produto.id, nome: produto.nome, foto: produto.foto || null, preco: produto.preco || 0 }, ...atual].slice(0, 20);
+      : [{ id: Date.now(), produtoId: produto.id, nome: produto.nome, foto: produto.foto || null, preco: produto.preco || 0, lojaSlug: slugParam, adicionandoEm: new Date().toISOString() }, ...atual].slice(0, 20);
     localStorage.setItem(chave, JSON.stringify(novo));
     setQueroProvar(novo);
+    // Firestore sync
+    try {
+      await updateDoc(doc(db, "users", user.uid), {
+        [`queroProvar.${produto.id}`]: jaExiste ? deleteField() : { produtoId: produto.id, nome: produto.nome, foto: produto.foto || null, preco: produto.preco || 0, lojaSlug: slugParam, adicionandoEm: new Date().toISOString() }
+      });
+      await setDoc(doc(db, `tenants/${slugParam}/produtos/${produto.id}`),
+        { queroProvarCount: increment(jaExiste ? -1 : 1) }, { merge: true });
+    } catch {}
     toast(jaExiste ? "Removido da lista de desejos" : "💭 Adicionado ao Quero Provar!");
   };
 
@@ -496,7 +504,7 @@ const toggleFavorito = async (produto, e) => {
               🗺️ Area - entrega
             </button>
           )}
-          <button onClick={() => navigate("/feed")} style={{ display: "flex", alignItems: "center", gap: 5, background: "linear-gradient(135deg, rgba(193,53,132,0.2), rgba(131,58,180,0.2))", border: "1px solid rgba(193,53,132,0.3)", borderRadius: 50, padding: "5px 12px", cursor: "pointer", fontSize: "0.72rem", color: "#f472b6", fontFamily: "'Outfit', sans-serif" }}>
+          <button onClick={() => navigate(slugParam ? `/loja/${slugParam}/feed` : "/feed")} style={{ display: "flex", alignItems: "center", gap: 5, background: "linear-gradient(135deg, rgba(193,53,132,0.2), rgba(131,58,180,0.2))", border: "1px solid rgba(193,53,132,0.3)", borderRadius: 50, padding: "5px 12px", cursor: "pointer", fontSize: "0.72rem", color: "#f472b6", fontFamily: "'Outfit', sans-serif" }}>
             📸 {toSlug(config.nomeLoja)}page
           </button>
           <button onClick={() => navigate(slugParam ? `/loja/${slugParam}/perfil` : "/perfil")} style={{ display: "flex", alignItems: "center", gap: 5, background: "color-mix(in srgb, var(--loja-banner-texto, #fff) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--loja-banner-texto, #fff) 30%, transparent)", borderRadius: 50, padding: "5px 12px", cursor: "pointer", fontSize: "0.72rem", color: "var(--loja-banner-texto, #fff)", fontFamily: "'Outfit', sans-serif" }}>Perfil/horarios</button>
@@ -757,7 +765,7 @@ const toggleFavorito = async (produto, e) => {
       <div style={{ position: "fixed", bottom: 50, left: 0, right: 0, zIndex: 40, background: "rgba(13,5,24,0.97)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", borderTop: "1px solid var(--border)", padding: "6px 16px", display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", transform: "translateZ(0)" }}>
         {getFiltrosOrdenados(config).map(filtro => {
           if (filtro.tipo === "nav") {
-            return <button key={filtro.id} onClick={() => navigate(filtro.path)} style={{ flexShrink: 0, padding: "5px 12px", background: userScrolled ? "rgba(245,197,24,0.1)" : "transparent", border: `1px solid ${userScrolled ? "rgba(245,197,24,0.25)" : "rgba(255,255,255,0.08)"}`, borderRadius: 50, cursor: "pointer", color: userScrolled ? "var(--gold)" : "rgba(255,255,255,0.2)", fontFamily: "'Outfit', sans-serif", fontSize: "0.72rem", fontWeight: 600, transition: "all 0.3s" }}>{filtro.label}</button>;
+            return <button key={filtro.id} onClick={() => navigate(filtro.path === "/feed" && slugParam ? `/loja/${slugParam}/feed` : filtro.path)} style={{ flexShrink: 0, padding: "5px 12px", background: userScrolled ? "rgba(245,197,24,0.1)" : "transparent", border: `1px solid ${userScrolled ? "rgba(245,197,24,0.25)" : "rgba(255,255,255,0.08)"}`, borderRadius: 50, cursor: "pointer", color: userScrolled ? "var(--gold)" : "rgba(255,255,255,0.2)", fontFamily: "'Outfit', sans-serif", fontSize: "0.72rem", fontWeight: 600, transition: "all 0.3s" }}>{filtro.label}</button>;
           }
           const ativo = ordenacao === filtro.id;
           return <button key={filtro.id} onClick={() => setOrdenacao(filtro.id)} style={{ flexShrink: 0, padding: "5px 12px", background: ativo ? "rgba(245,197,24,0.15)" : userScrolled ? "rgba(255,255,255,0.06)" : "transparent", border: `1px solid ${ativo ? "rgba(245,197,24,0.5)" : userScrolled ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.06)"}`, borderRadius: 50, cursor: "pointer", color: ativo ? "var(--gold)" : userScrolled ? "var(--text3)" : "rgba(255,255,255,0.18)", fontFamily: "'Outfit', sans-serif", fontSize: "0.72rem", fontWeight: 600, transition: "all 0.3s" }}>{filtro.label}</button>;
@@ -767,7 +775,7 @@ const toggleFavorito = async (produto, e) => {
       {/* BOTÃO CARRINHO — só no modo delivery */}
       {!isCatalogo && cartCount() > 0 && (
         <div style={{ position: "fixed", bottom: 105, left: "50%", transform: "translateX(-50%)", zIndex: 50 }}>
-          <button onClick={() => navigate("/carrinho")} style={{ background: "linear-gradient(135deg, var(--purple2), var(--purple))", border: "none", borderRadius: 50, color: "#fff", fontWeight: 700, fontSize: "0.88rem", padding: "11px 24px", cursor: "pointer", fontFamily: "'Outfit', sans-serif", boxShadow: "0 6px 20px rgba(90,45,145,0.5)", display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
+          <button onClick={() => navigate(`/loja/${slugParam}/carrinho`)} style={{ background: "linear-gradient(135deg, var(--purple2), var(--purple))", border: "none", borderRadius: 50, color: "#fff", fontWeight: 700, fontSize: "0.88rem", padding: "11px 24px", cursor: "pointer", fontFamily: "'Outfit', sans-serif", boxShadow: "0 6px 20px rgba(90,45,145,0.5)", display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
             🛒 Ver pedido ({cartCount()} {cartCount() === 1 ? "item" : "itens"})
           </button>
         </div>
@@ -808,7 +816,7 @@ const toggleFavorito = async (produto, e) => {
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: "22px", boxShadow: "0 4px 18px rgba(108,63,181,0.6)",
             }}
-            title="Pedir pelo Chat"
+            title="Pedir em 1 min - Chat IA"
           >
             💬
           </button>

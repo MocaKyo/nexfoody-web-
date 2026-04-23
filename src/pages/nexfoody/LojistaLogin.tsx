@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 
 export default function LojistaLogin() {
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, userData } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -11,12 +11,16 @@ export default function LojistaLogin() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Se já está logado como lojista, vai direto pro hub
+  if (userData?.role === "lojista") {
+    navigate("/lojista/hub", { replace: true });
+  }
+
   const handleGoogle = async () => {
     setGoogleLoading(true);
     setError("");
     try {
-      await loginWithGoogle();
-      navigate("/");
+      await loginWithGoogle("/lojista/hub");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erro com login Google");
     } finally {
@@ -29,10 +33,7 @@ export default function LojistaLogin() {
     setLoading(true);
     setError("");
     try {
-      await login(email, password);
-      // After login, check role and redirect
-      // For now, redirect to home - the AuthContext will update userData
-      navigate("/");
+      await login(email, password, "/lojista/hub");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Erro ao fazer login";
       if (msg.includes("user-not-found") || msg.includes("wrong-password") || msg.includes("invalid-credential")) {
@@ -114,6 +115,9 @@ export default function LojistaLogin() {
       <p className="auth-footer">
         Não tem uma conta?{" "}
         <Link to="/lojista/cadastro">Criar loja</Link>
+      </p>
+      <p className="auth-footer" style={{ marginTop: 8 }}>
+        <Link to="/lojista/funcionario">👥 Sou membro da equipe</Link>
       </p>
     </div>
   );

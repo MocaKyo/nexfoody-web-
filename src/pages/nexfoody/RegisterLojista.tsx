@@ -121,7 +121,7 @@ export default function RegisterLojista() {
       await setDoc(doc(db, `tenants/${slug}/config/loja`), {
         tenantId: slug, nomeLoja, logoUrl: "", imagemCapa: "", horario: "", whatsapp: telefone,
         pixKey: "", nomeRecebedorPix: "", cidadePix: "", pontosPorReal: 1, endereco: "",
-        mensagemPausa: "Loja temporariamente fechada", instagram: "", cardapioAtivo: true,
+        mensagemPausa: "Loja temporariamente fechada", instagram: "", paginaFeed: slug, cardapioAtivo: true,
         pausaManual: false, horarioAutomatico: false, horarioAbertura: "09:00", horarioFechamento: "22:00",
         suporteAtivo: true, tempoMin: 30, tempoMax: 60, tema: "dark", ativo: true,
         chamadaCupom: ["🎉 5% de desconto!"], rankingPtsComentario: 15, rankingPtsPedido: 10, rankingPtsPorReal: 1,
@@ -473,8 +473,8 @@ export default function RegisterLojista() {
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate("/lojista/dashboard", { replace: true })} style={btnGold}>
-                  Ir para o admin da minha loja →
+                <motion.button whileTap={{ scale: 0.98 }} onClick={() => navigate("/lojista/hub", { replace: true })} style={btnGold}>
+                  Ir para minhas lojas →
                 </motion.button>
                 <motion.button whileTap={{ scale: 0.98 }} onClick={() => window.open(`/loja/${slug}`, "_blank")} style={btnOutline}>
                   Ver modelo da loja

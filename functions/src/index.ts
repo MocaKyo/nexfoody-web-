@@ -4,11 +4,13 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onCall, HttpsError, onRequest } from "firebase-functions/v2/https";
 import { MercadoPagoConfig, Payment } from "mercadopago";
+import Stripe from "stripe";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import Anthropic from "@anthropic-ai/sdk";
 
 const anthropicKey = defineSecret("ANTHROPIC_API_KEY");
+const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 
 // ─────────────────────────────────────────────────────────────
 // GERADOR PIX COPIA E COLA (padrão EMV/BACEN)
@@ -2799,5 +2801,79 @@ SEU PERFIL:
         graficos,
       } : null,
     };
+  }
+);
+
+// ─────────────────────────────────────────────────────────────
+// STRIPE CHECKOUT SESSION — cria sessão e retorna URL
+// ─────────────────────────────────────────────────────────────
+export const criarSessaoStripe = onCall(
+  { secrets: ["STRIPE_SECRET_KEY"], region: "us-east1" },
+  async (request) => {
+    if (!request.auth) throw new HttpsError("unauthenticated", "Login necessário.");
+
+    const { items, numPedido, nomeCliente, email, telefone, tenantId } = request.data as {
+      items: { nome: string; preco: number; qty: number }[];
+      numPedido: number;
+      nomeCliente: string;
+      email: string;
+      telefone: string;
+      tenantId: string;
+    };
+
+    if (!items || items.length === 0) {
+      throw new HttpsError("invalid-argument", "Nenhum item fornecido.");
+    }
+
+    try {
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+        apiVersion: "2024-06-20",
+      });
+
+      const lineItems = items.map((item) => ({
+        price_data: {
+          currency: "brl",
+          product_data: {
+            name: item.nome,
+          },
+          unit_amount: item.preco, // já em centavos
+        },
+        quantity: item.qty,
+      }));
+
+      // Buscar tenantId para obter nome da loja
+      let nomeLoja = "Nexfoody";
+      try {
+        const tenantDoc = await admin.firestore().collection("lojas").doc(tenantId).get();
+        if (tenantDoc.exists) {
+          nomeLoja = (tenantDoc.data() as any)?.nome || "Nexfoody";
+        }
+      } catch {}
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: lineItems,
+        mode: "payment",
+        customer_email: email || undefined,
+        metadata: {
+          numPedido: String(numPedido),
+          nomeCliente,
+          telefone: telefone || "",
+          tenantId: tenantId || "",
+        },
+        success_url: `${process.env.SITE_URL || "https://nexfoody.com.br"}/pedido/${numPedido}?success=true&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.SITE_URL || "https://nexfoody.com.br"}/carrinho?canceled=true`,
+        custom_text: {
+          submit: {
+            message: `Pedido #${numPedido} — ${nomeLoja}`,
+          },
+        },
+      });
+
+      return { url: session.url };
+    } catch (error: any) {
+      logger.error("Erro ao criar sessão Stripe:", error);
+      throw new HttpsError("internal", "Erro ao criar sessão de pagamento: " + error.message);
+    }
   }
 );

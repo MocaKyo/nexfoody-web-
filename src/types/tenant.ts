@@ -47,6 +47,7 @@ export interface TenantConfig {
   endereco: string;
   mensagemPausa: string;
   instagram: string;
+  paginaFeed: string;
   cardapioAtivo: boolean;
   pausaManual: boolean;
   horarioAutomatico: boolean;
@@ -61,8 +62,14 @@ export interface TenantConfig {
   rankingPtsComentario: number;
   rankingPtsPedido: number;
   rankingPtsPorReal: number;
+  metaFaturamento?: number;
   taxaEntrega?: number;
+  exibirLogoFeed?: boolean;
+  logoFeed?: string;
   visual?: Partial<LojaVisual>;
+  cashbackPercent?: number;
+  cashbackMaxPedido?: number;
+  modoFidelidade?: "pontos" | "cashback" | "ambos";
 }
 
 export interface LojaMeta {
@@ -94,11 +101,24 @@ export interface UserData {
   pontos: number;
   rankingPts: number;
   cashback: number;
-  role: "cliente" | "lojista" | "admin";
+  role: "cliente" | "lojista" | "admin" | "funcionario";
   following: string[];
   createdAt: unknown;
   favoritos: string[];
+  tenantId?: string;
+  papel?: string;
+  criadoPor?: string;
   lojistaOf?: string;
+  endereco?: string;
+  contatosEmergencia?: Array<{ nome: string; telefone: string; tipo: "familiar" | "amigo" | "outro" }>;
+  queroProvar?: Record<string, {
+    produtoId: string;
+    nome: string;
+    foto?: string | null;
+    preco: number;
+    lojaSlug: string;
+    adicionandoEm?: string;
+  }>;
 }
 
 export interface Pedido {
@@ -127,6 +147,8 @@ export interface PedidoItem {
   precoUnit: number;
   precoTotal: number;
   foto?: string;
+  complementos?: Array<{ nome: string; preco: number }>;
+  obs?: string;
 }
 
 export interface Cupom {

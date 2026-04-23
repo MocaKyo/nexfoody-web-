@@ -6,7 +6,7 @@ import { AvaliacaoProduto } from "./Avaliacoes";
 import { useStore } from "../contexts/StoreContext";
 import { useTenant } from "../contexts/TenantContext";
 
-export default function ModalProduto({ produto, onClose, onAdd, isAberto, complementosIniciais = [], stats = {}, isFav = false, onToggleFav, isCatalogo = false, whatsapp = "" }) {
+export default function ModalProduto({ produto, onClose, onAdd, isAberto, complementosIniciais = [], stats = {}, isFav = false, onToggleFav, isCatalogo = false, whatsapp = "", onAddWithComplementos }) {
   const { cartExtras, removeFromExtras } = useStore();
   const { tenantId } = useTenant();
   const prodPath = tenantId ? `tenants/${tenantId}/produtos/${produto.id}` : `produtos/${produto.id}`;
@@ -137,6 +137,7 @@ export default function ModalProduto({ produto, onClose, onAdd, isAberto, comple
     });
     if (itemNoCarrinho) removeFromExtras(itemNoCarrinho.itemId);
     onAdd(produto, complementosSelecionados, precoTotal);
+    if (onAddWithComplementos) onAddWithComplementos(produto, complementosSelecionados);
   };
 
   const compartilhar = (e) => {

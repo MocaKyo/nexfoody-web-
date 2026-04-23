@@ -18,6 +18,7 @@ export default function PerfilLoja() {
   const [form, setForm] = useState({});
   const [uploadingFor, setUploadingFor] = useState(null);
   const [draggingCapa, setDraggingCapa] = useState(false);
+  const inputLogoFeedRef = useRef(null);
   const [capaStartY, setCapaStartY] = useState(0);
   const [capaY, setCapaY] = useState(50);
   const initCapaYDone = useRef(false);
@@ -152,7 +153,7 @@ export default function PerfilLoja() {
       {/* Logo e nome */}
       <div style={{ padding: "0 16px", marginTop: -40, position: "relative", zIndex: 1 }}>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 14, marginBottom: 16 }}>
-          <img src={config.logoUrl || LOGO_URL} alt="Logo" style={{
+          <img src={config.logoFeed || config.logoUrl || LOGO_URL} alt="Logo" style={{
             width: 80, height: 80, borderRadius: 18, objectFit: "cover",
             border: "3px solid var(--bg)", boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
           }} />
@@ -177,7 +178,7 @@ export default function PerfilLoja() {
         <button
           onClick={() => {
             const url = window.location.origin;
-            const texto = `🫐 Conheça o cardápio de ${config.nomeLoja || "nossa loja"}! Peça agora: ${url}`;
+            const texto = `Conheça o cardápio de ${config.nomeLoja || "nossa loja"}! Peça agora: ${url}`;
             if (navigator.share) {
               navigator.share({ title: config.nomeLoja || "Loja", text: texto, url });
             } else {
@@ -196,7 +197,7 @@ export default function PerfilLoja() {
             boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
           }}
         >
-          📤 Compartilhar cardápio
+           Compartilhar cardápio
         </button>
 
         {/* Quem somos */}
@@ -328,19 +329,45 @@ export default function PerfilLoja() {
               <div style={{ fontSize: "0.7rem", color: "var(--text3)", marginTop: 4 }}>Foto da fachada ou produto — proporção 16:9 recomendada · máx 5MB</div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">🖼️ Logo</label>
-              <input ref={inputLogoRef} type="file" accept="image/*" style={{ display: "none" }}
-                onChange={e => handleFileUpload("logoUrl", e.target.files[0])} />
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                <button onClick={() => inputLogoRef.current?.click()} style={{ padding: "8px 14px", background: "rgba(245,197,24,0.1)", border: "1px solid rgba(245,197,24,0.25)", borderRadius: 10, cursor: "pointer", color: "var(--gold)", fontFamily: "'Outfit', sans-serif", fontWeight: 600, fontSize: "0.82rem", display: "flex", alignItems: "center", gap: 6 }}>
-                  📤 {uploadingFor === "logoUrl" ? "Enviando..." : "Escolher arquivo"}
-                </button>
-                <input className="form-input" style={{ flex: 1, minWidth: 120 }} value={form.logoUrl || ""} onChange={set("logoUrl")} placeholder="Ou cole URL da logo..." />
+            <div className="form-group" style={{ display: "flex", gap: 16 }}>
+              <div style={{ flex: 1 }}>
+                <label className="form-label">🖼️ Logo</label>
+                <input ref={inputLogoRef} type="file" accept="image/*" style={{ display: "none" }}
+                  onChange={e => handleFileUpload("logoUrl", e.target.files[0])} />
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <button onClick={() => inputLogoRef.current?.click()} style={{ padding: "8px 14px", background: "rgba(245,197,24,0.1)", border: "1px solid rgba(245,197,24,0.25)", borderRadius: 10, cursor: "pointer", color: "var(--gold)", fontFamily: "'Outfit', sans-serif", fontWeight: 600, fontSize: "0.82rem", display: "flex", alignItems: "center", gap: 6 }}>
+                     {uploadingFor === "logoUrl" ? "Enviando..." : "Escolher"}
+                  </button>
+                  <input className="form-input" style={{ flex: 1, minWidth: 80 }} value={form.logoUrl || ""} onChange={set("logoUrl")} placeholder="URL..." />
+                </div>
+                {form.logoUrl && (
+                  <img src={form.logoUrl} alt="Logo preview" style={{ width: 50, height: 50, objectFit: "cover", borderRadius: 8, marginTop: 6 }} />
+                )}
               </div>
-              {form.logoUrl && (
-                <img src={form.logoUrl} alt="Logo preview" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 10, marginTop: 8 }} />
-              )}
+              <div style={{ flex: 1 }}>
+                <label className="form-label">🖼️ Logo para o feed</label>
+                <input ref={inputLogoFeedRef} type="file" accept="image/*" style={{ display: "none" }}
+                  onChange={e => handleFileUpload("logoFeed", e.target.files[0])} />
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <button onClick={() => inputLogoFeedRef.current?.click()} style={{ padding: "8px 14px", background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 10, cursor: "pointer", color: "#a855f7", fontFamily: "'Outfit', sans-serif", fontWeight: 600, fontSize: "0.82rem", display: "flex", alignItems: "center", gap: 6 }}>
+                    📤 {uploadingFor === "logoFeed" ? "Enviando..." : "Escolher"}
+                  </button>
+                  <input className="form-input" style={{ flex: 1, minWidth: 80 }} value={form.logoFeed || ""} onChange={set("logoFeed")} placeholder="URL..." />
+                </div>
+                {form.logoFeed && (
+                  <img src={form.logoFeed} alt="Logo feed preview" style={{ width: 50, height: 50, objectFit: "cover", borderRadius: 8, marginTop: 6 }} />
+                )}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                <input type="checkbox" checked={form.exibirLogoFeed !== false} onChange={e => setForm(p => ({ ...p, exibirLogoFeed: e.target.checked }))} style={{ width: 18, height: 18, accentColor: "var(--gold)" }} />
+                <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: "0.88rem", fontWeight: 600, color: "var(--gold)" }}>🏷️ Exibir logo no feed</span>
+              </label>
+              <div style={{ fontSize: "0.72rem", color: "var(--text3)", marginTop: 6, lineHeight: 1.5 }}>
+                Quando ativo, sua logo aparece nos cards do feed da NexFoody em vez do emoji da loja. Isso ajuda clientes a reconhecer sua marca mais rápido.
+              </div>
             </div>
 
             <div className="form-group">

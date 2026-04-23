@@ -4,8 +4,10 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { StoreProvider } from "./contexts/StoreContext";
 import { TenantProvider, useTenant } from "./contexts/TenantContext";
+import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { VISUAL_PADRAO } from "./types/tenant";
 import Layout from "./components/Layout";
+import { ToastProvider } from "./components/Toast";
 import { useEffect } from "react";
 import { doc, setDoc, serverTimestamp, increment } from "firebase/firestore";
 import { db } from "./lib/firebase";
@@ -22,8 +24,7 @@ import Entregador from "./pages/Entregador";
 import Mesa from "./pages/Mesa";
 import PagamentoSucesso from "./pages/PagamentoSucesso";
 import PerfilLoja from "./pages/PerfilLoja";
-import FeedLoja from "./pages/FeedLoja";
-import FeedLojaTenant from "./pages/acai-puro-gosto/FeedLoja";
+import FeedLoja from "./pages/acai-puro-gosto/FeedLoja";
 import Favoritos from "./pages/Favoritos";
 import RankingFas from "./components/RankingFas";
 import Social from "./pages/Social";
@@ -35,9 +36,12 @@ import ChatPage from "./pages/ChatPage";
 
 // NexFoody platform pages
 import LojistaLogin from "./pages/nexfoody/LojistaLogin";
+import FuncionarioLogin from "./pages/nexfoody/FuncionarioLogin";
 import RegisterLojista from "./pages/nexfoody/RegisterLojista";
 import RegisterCatalogo from "./pages/nexfoody/RegisterCatalogo";
 import LojistaDashboard from "./pages/nexfoody/LojistaDashboard";
+import LojistaHub from "./pages/nexfoody/LojistaHub";
+import PlanosPage from "./pages/nexfoody/PlanosPage";
 import NexfoodyHome from "./pages/nexfoody/NexfoodyHome";
 import NexfoodyFeedHome from "./pages/nexfoody/NexfoodyFeedHome";
 import NexfoodyLojas from "./pages/nexfoody/NexfoodyLojas";
@@ -62,6 +66,9 @@ import AdminBroadcast from "./pages/nexfoody/AdminBroadcast";
 import AdminLanding from "./pages/nexfoody/AdminLanding";
 import AdminInstrucoes from "./pages/nexfoody/AdminInstrucoes";
 import Instrucoes from "./pages/nexfoody/Instrucoes";
+import Rankings from "./pages/nexfoody/Rankings";
+import StoreRanking from "./pages/nexfoody/StoreRanking";
+import RankingsHub from "./pages/nexfoody/RankingsHub";
 
 /** Retorna true se a cor hex for escura (luminância < 0.5) */
 function hexEscuro(hex: string): boolean {
@@ -74,38 +81,43 @@ function hexEscuro(hex: string): boolean {
   } catch { return true; }
 }
 
-// Theme manager (inside TenantProvider) — aplica tema + CSS variables da loja
+// Theme manager (inside TenantProvider) — aplica tema global + CSS variables da loja
 function ThemeManager() {
   const { tenantConfig } = useTenant();
+  const { resolvedTheme } = useTheme();
   useEffect(() => {
     const v = { ...VISUAL_PADRAO, ...(tenantConfig?.visual || {}) };
     const html = document.documentElement;
-    const temaBase = v.temaBase || "dark";
+
+    // Base theme comes from global ThemeContext (dark/light/system)
+    // Tenant's visual override (temaBase) can still force a mode
+    const tenantTema = v.temaBase as string | undefined;
+    const baseTema = tenantTema || resolvedTheme; // resolvedTheme already handles "system"
+    const isClaro = baseTema === "light" || baseTema === "white";
 
     // Define data-tema para o CSS base (dark/light)
-    html.setAttribute("data-tema", temaBase === "dark" ? "dark" : "light");
+    html.setAttribute("data-tema", isClaro ? "light" : "dark");
 
     const bannerBg = v.bannerGradiente
       ? `linear-gradient(${v.bannerDirecao}, ${v.bannerCorA}, ${v.bannerCorB})`
       : v.bannerCorA;
 
     // Cores base conforme temaBase
-    const isClaro = temaBase === "light" || temaBase === "white";
-    const bgPuro  = temaBase === "white"  ? "#ffffff" : isClaro ? "#f8f8f8" : v.corFundo;
-    const bg2Puro = temaBase === "white"  ? "#f4f4f4" : isClaro ? "#eeeeee" : undefined;
-    const textoPrincipal = isClaro ? "#111111" : "#f0e9ff";
-    const textoSecundario = isClaro ? "#444444" : "#b09fd0";
-    const textoMudo       = isClaro ? "#888888" : "#7a6a9a";
+    const bgPuro  = baseTema === "white"  ? "#ffffff" : isClaro ? "#f8f8f8" : v.corFundo;
+    const bg2Puro = baseTema === "white"  ? "#f4f4f4" : isClaro ? "#eeeeee" : undefined;
+    const textoPrincipal = isClaro ? "#111111" : undefined;
+    const textoSecundario = isClaro ? "#374151" : undefined;
+    const textoMudo       = isClaro ? "#6b7280" : undefined;
     const borderClaro     = isClaro ? "rgba(0,0,0,0.1)" : undefined;
 
     // Override vars base quando tema claro
     if (isClaro) {
       html.style.setProperty("--bg",      bgPuro);
       html.style.setProperty("--bg2",     bg2Puro!);
-      html.style.setProperty("--bg3",     temaBase === "white" ? "#e8e8e8" : "#dddddd");
-      html.style.setProperty("--text",    textoPrincipal);
-      html.style.setProperty("--text2",   textoSecundario);
-      html.style.setProperty("--text3",   textoMudo);
+      html.style.setProperty("--bg3",     baseTema === "white" ? "#e8e8e8" : "#dddddd");
+      html.style.setProperty("--text",    textoPrincipal!);
+      html.style.setProperty("--text2",   textoSecundario!);
+      html.style.setProperty("--text3",   textoMudo!);
       html.style.setProperty("--border",  borderClaro!);
       html.style.setProperty("--border2", "rgba(0,0,0,0.18)");
       html.style.setProperty("--gold",    v.corPrimaria); // "gold" segue a cor primária da loja
@@ -141,7 +153,7 @@ function ThemeManager() {
     const navBg = isClaro ? `rgba(255,255,255,0.97)` : `rgba(19,8,42,0.96)`;
     html.style.setProperty("--loja-nav-bg",     v.navBg     || navBg);
     html.style.setProperty("--loja-nav-border", v.navBorder || (isClaro ? "rgba(0,0,0,0.1)" : "rgba(138,92,246,0.18)"));
-    html.style.setProperty("--loja-nav-texto",  v.navTexto  || (isClaro ? textoMudo : "#7a6a9a"));
+    html.style.setProperty("--loja-nav-texto",  v.navTexto  || (isClaro ? textoMudo! : "#7a6a9a"));
     html.style.setProperty("--loja-nav-ativo",  v.corPrimaria);
 
     const ALL_VARS = [
@@ -156,7 +168,7 @@ function ThemeManager() {
       html.removeAttribute("data-tema");
       ALL_VARS.forEach(k => html.style.removeProperty(k));
     };
-  }, [tenantConfig?.visual]);
+  }, [tenantConfig?.visual, resolvedTheme]);
   return null;
 }
 
@@ -212,7 +224,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user, userData, loading } = useAuth();
   if (loading) return <div className="loading-screen"><div className="spinner" /></div>;
   if (!user) return <Navigate to="/nexfoody/login" replace />;
-  if (userData?.role !== "admin" && userData?.role !== "lojista") return <Navigate to="/" replace />;
+  if (userData?.role !== "admin" && userData?.role !== "lojista" && userData?.role !== "funcionario") return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -232,10 +244,12 @@ export default function App() {
   useVisitorTracking();
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <AuthProvider>
-        <Routes>
-          {/* NexFoody platform */}
-          <Route path="/" element={<NexfoodyFeedHome />} />
+      <ThemeProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <Routes>
+              {/* NexFoody platform */}
+              <Route path="/" element={<NexfoodyFeedHome />} />
           <Route path="/nexfoody/welcome" element={<Navigate to="/nexfoody/login" replace />} />
           <Route path="/nexfoody/login" element={<NexfoodyLogin />} />
           <Route path="/nexfoody/cadastro" element={<NexfoodyRegister />} />
@@ -247,9 +261,14 @@ export default function App() {
           <Route path="/app" element={<NexfoodyFeedHome />} />
           <Route path="/lojas" element={<NexfoodyLojas />} />
           <Route path="/lojista/login" element={<LojistaLogin />} />
+          <Route path="/lojista/funcionario" element={<FuncionarioLogin />} />
+          <Route path="/lojista/funcionario/:slug" element={<FuncionarioLogin />} />
           <Route path="/lojista/cadastro" element={<RegisterLojista />} />
           <Route path="/lojista/catalogo" element={<RegisterCatalogo />} />
           <Route path="/lojista/dashboard" element={<ProtectedRoute><LojistaDashboard /></ProtectedRoute>} />
+          <Route path="/lojista/hub" element={<ProtectedRoute><LojistaHub /></ProtectedRoute>} />
+          <Route path="/lojista/planos" element={<PlanosPage />} />
+          <Route path="/planos" element={<PlanosPage />} />
           <Route path="/carteira" element={<ProtectedRoute><Carteira /></ProtectedRoute>} />
           <Route path="/como-funciona" element={<ComoFunciona />} />
           <Route path="/admin" element={<AdminRoute><AdminPlataforma /></AdminRoute>} />
@@ -270,6 +289,9 @@ export default function App() {
 
           {/* Standalone pages */}
           <Route path="/ranking" element={<RankingFas />} />
+          <Route path="/rankings" element={<Rankings />} />
+          <Route path="/rankings/:slug" element={<StoreRanking />} />
+          <Route path="/rankings-hub" element={<RankingsHub />} />
           <Route path="/premios" element={<PremiosGanhadores />} />
           <Route path="/perfil/:userId" element={<PerfilCliente />} />
           <Route path="/meu-perfil" element={<PerfilCliente />} />
@@ -291,7 +313,7 @@ export default function App() {
           {/* Multi-tenant store routes — NexFoody hospeda lojas aqui */}
           <Route path="/loja/:slug" element={<TenantLayout />}>
             <Route index element={<Cardapio />} />
-            <Route path="feed" element={<FeedLojaTenant />} />
+            <Route path="feed" element={<FeedLoja />} />
             <Route path="carrinho" element={<Carrinho />} />
             <Route path="pontos" element={<ProtectedRoute><MeusPontos /></ProtectedRoute>} />
             <Route path="historico" element={<ProtectedRoute><Historico /></ProtectedRoute>} />
@@ -301,8 +323,10 @@ export default function App() {
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AuthProvider>
+            </Routes>
+          </AuthProvider>
+        </ToastProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

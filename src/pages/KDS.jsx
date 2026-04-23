@@ -3,12 +3,20 @@ import React, { useEffect, useState, useRef } from "react";
 import { collection, query, orderBy, onSnapshot, updateDoc, doc, where, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useParams } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 const STATUS_KDS = {
-  pendente:   { label: "NOVO",       cor: "#f5c518", bg: "rgba(245,197,24,0.15)",  icon: "🆕", ordem: 0 },
-  confirmado: { label: "CONFIRMADO", cor: "#60a5fa", bg: "rgba(96,165,250,0.15)",  icon: "✅", ordem: 1 },
-  preparo:    { label: "EM PREPARO", cor: "#a78bfa", bg: "rgba(167,139,250,0.15)", icon: "👨‍🍳", ordem: 2 },
-  pronto:     { label: "PRONTO",     cor: "#22c55e", bg: "rgba(34,197,94,0.15)",   icon: "🎉", ordem: 3 },
+  pendente:   { label: "NOVO",        cor: "#f5c518", bg: "rgba(245,197,24,0.15)",   icon: "🆕",  ordem: 0, som: "novo" },
+  confirmado: { label: "CONFIRMADO",   cor: "#60a5fa", bg: "rgba(96,165,250,0.15)",   icon: "✅",  ordem: 1, som: null },
+  preparo:    { label: "EM PREPARO",  cor: "#a78bfa", bg: "rgba(167,139,250,0.15)", icon: "👨‍🍳", ordem: 2, som: null },
+  pronto:     { label: "PRONTO",       cor: "#22c55e", bg: "rgba(34,197,94,0.15)",    icon: "🎉",  ordem: 3, som: null },
+};
+
+const TEMPO_SLA = {
+  pendente:   { limite: 3,  cor: "#ef4444" },  // vermelho após 3 min
+  confirmado: { limite: 10, cor: "#f97316" },  // laranja após 10 min
+  preparo:    { limite: 20, cor: "#f97316" },  // laranja após 20 min
+  pronto:     { limite: 5,  cor: "#ef4444" },  // vermelho após 5 min
 };
 
 function tocarSom(tipo) {
@@ -47,21 +55,29 @@ function tempoDecorrido(ts) {
 
 export default function KDS() {
   const { slug } = useParams();
+  const { userData } = useAuth();
   const [pedidos, setPedidos] = useState([]);
   const [ativado, setAtivado] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
-  const pedidosAnteriores = useRef(null);
   const [tempo, setTempo] = useState(Date.now());
   const [nomeLoja, setNomeLoja] = useState("");
   const [logoLoja, setLogoLoja] = useState("");
+  const [tenantId, setTenantId] = useState(null);
+  const pedidosAnteriores = useRef(null);
+
+  // Papel do funcionário logado
+  const papel = userData?.papel || "gerencia";
+  // Cozinha só vê pendente e preparo
+  const isCozinha = papel === "cozinha";
 
   useEffect(() => {
     if (!slug) return;
     getDoc(doc(db, "lojas", slug)).then(snap => {
       if (snap.exists()) {
         const data = snap.data();
-        const tenantId = data.tenantId || slug;
-        getDoc(doc(db, `tenants/${tenantId}/config/loja`)).then(cfg => {
+        const resolvedTenantId = data.tenantId || slug;
+        setTenantId(resolvedTenantId);
+        getDoc(doc(db, `tenants/${resolvedTenantId}/config/loja`)).then(cfg => {
           if (cfg.exists()) {
             setNomeLoja(cfg.data().nomeLoja || "");
             setLogoLoja(cfg.data().logoUrl || "");
@@ -71,15 +87,18 @@ export default function KDS() {
     });
   }, [slug]);
 
-  // Atualizar tempo a cada 30s para mostrar tempo decorrido
+  // Atualizar tempo a cada 15s para mostrar tempo decorrido
   useEffect(() => {
-    const t = setInterval(() => setTempo(Date.now()), 30000);
+    const t = setInterval(() => setTempo(Date.now()), 15000);
     return () => clearInterval(t);
   }, []);
 
+  // Buscar pedidos SOMENTE desta loja
   useEffect(() => {
+    if (!tenantId) return;
     const q = query(
       collection(db, "pedidos"),
+      where("tenantId", "==", tenantId),
       where("status", "in", ["pendente", "confirmado", "preparo", "pronto"]),
       orderBy("createdAt", "asc")
     );
@@ -88,13 +107,15 @@ export default function KDS() {
       if (pedidosAnteriores.current !== null) {
         const idsAnteriores = new Set(pedidosAnteriores.current.map(p => p.id));
         const chegaram = novos.filter(p => !idsAnteriores.has(p.id));
-        if (chegaram.length > 0 && ativado) tocarSom("novo");
+        if (chegaram.length > 0 && ativado) {
+          chegaram.forEach(p => { if (STATUS_KDS[p.status]?.som) tocarSom(STATUS_KDS[p.status].som); });
+        }
       }
       pedidosAnteriores.current = novos;
       setPedidos(novos);
     });
     return unsub;
-  }, [ativado]);
+  }, [tenantId, ativado]);
 
   const atualizarStatus = async (pedidoId, novoStatus) => {
     await updateDoc(doc(db, "pedidos", pedidoId), { status: novoStatus });
@@ -110,12 +131,30 @@ export default function KDS() {
     }
   };
 
-  // Agrupar por status
+  // Agrupar por status — Cozinha só vê pendente/preparo
   const porStatus = {
-    pendente:   pedidos.filter(p => p.status === "pendente"),
-    confirmado: pedidos.filter(p => p.status === "confirmado"),
+    pendente:   isCozinha ? [] : pedidos.filter(p => p.status === "pendente"),
+    confirmado: isCozinha ? [] : pedidos.filter(p => p.status === "confirmado"),
     preparo:    pedidos.filter(p => p.status === "preparo"),
-    pronto:     pedidos.filter(p => p.status === "pronto"),
+    pronto:     isCozinha ? [] : pedidos.filter(p => p.status === "pronto"),
+  };
+
+  // Cozinha só avança: pendente → preparo → pronto
+  const podeAvancar = (currentStatus) => {
+    if (!isCozinha) return true;
+    const fluxo = ["pendente", "preparo", "pronto"];
+    const idx = fluxo.indexOf(currentStatus);
+    return idx < fluxo.length - 1;
+  };
+  const proximoStatus = (current) => {
+    const fluxo = ["pendente", "confirmado", "preparo", "pronto", "entrega", "entregue"];
+    if (isCozinha) {
+      const cf = ["pendente", "preparo", "pronto"];
+      const idx = cf.indexOf(current);
+      return cf[idx + 1] || null;
+    }
+    const idx = fluxo.indexOf(current);
+    return fluxo[idx + 1] || null;
   };
 
   const totalAtivos = pedidos.length;
@@ -145,10 +184,10 @@ export default function KDS() {
           }
           <div>
             <div style={{ fontWeight: 800, fontSize: "1rem", color: "#f5c518" }}>
-              🍳 COZINHA — {nomeLoja || "Loja"}
+              {isCozinha ? "🍳 COZINHA" : "🎯 KDS"} — {nomeLoja || "Loja"}
             </div>
             <div style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.4)" }}>
-              {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
+              {isCozinha ? `Função: Cozinha · ${new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}` : new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
             </div>
           </div>
         </div>
@@ -179,6 +218,9 @@ export default function KDS() {
           }}>
             {fullscreen ? "⊠ Sair" : "⊞ Tela cheia"}
           </button>
+        </div>
+        <div style={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.2)", textAlign: "right" }}>
+          🍳 {nomeLoja || slug}
         </div>
       </div>
 
@@ -226,14 +268,16 @@ export default function KDS() {
                   const minutos = p.createdAt?.toDate
                     ? Math.floor((Date.now() - p.createdAt.toDate().getTime()) / 60000)
                     : 0;
-                  const urgente = status === "preparo" && minutos > 15;
+                  const sla = TEMPO_SLA[status];
+                  const alertaSLA = sla && minutos >= sla.limite;
+                  const corAlerta = alertaSLA ? sla.cor : null;
 
                   return (
                     <div key={p.id} style={{
-                      background: urgente ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${urgente ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.08)"}`,
+                      background: alertaSLA ? `${sla.cor}12` : "rgba(255,255,255,0.04)",
+                      border: `2px solid ${alertaSLA ? sla.cor : "rgba(255,255,255,0.08)"}`,
                       borderRadius: 12, padding: 12, overflow: "hidden",
-                      animation: status === "pendente" ? "pulseCard 2s infinite" : "none",
+                      animation: status === "pendente" && !alertaSLA ? "pulseCard 2s infinite" : alertaSLA ? `pulseCard 1s infinite` : "none",
                     }}>
                       <style>{`@keyframes pulseCard { 0%,100%{border-color:rgba(245,197,24,0.2)} 50%{border-color:rgba(245,197,24,0.6)} }`}</style>
 
@@ -244,7 +288,7 @@ export default function KDS() {
                         </div>
                         <div style={{
                           fontSize: "0.7rem", fontWeight: 700,
-                          color: urgente ? "#ef4444" : "rgba(255,255,255,0.4)",
+                          color: corAlerta || "rgba(255,255,255,0.4)",
                         }}>
                           ⏱ {tempoDecorrido(p.createdAt)}
                         </div>
@@ -288,10 +332,10 @@ export default function KDS() {
                         </div>
                       )}
 
-                      {/* Botões de ação */}
+                      {/* Botões de ação — filtrados por funcao */}
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {status === "pendente" && (
-                          <button onClick={() => atualizarStatus(p.id, "preparo")} style={{
+                        {status === "pendente" && podeAvancar(status) && (
+                          <button onClick={() => atualizarStatus(p.id, isCozinha ? "preparo" : "preparo")} style={{
                             flex: 1, padding: "8px 0", border: "none", borderRadius: 8,
                             background: "linear-gradient(135deg, #a78bfa, #7c3aed)",
                             color: "#fff", fontWeight: 700, fontSize: "0.78rem",
@@ -300,8 +344,8 @@ export default function KDS() {
                             👨‍🍳 Iniciar preparo
                           </button>
                         )}
-                        {status === "confirmado" && (
-                          <button onClick={() => atualizarStatus(p.id, "preparo")} style={{
+                        {status === "confirmado" && podeAvancar(status) && (
+                          <button onClick={() => atualizarStatus(p.id, isCozinha ? "preparo" : "preparo")} style={{
                             flex: 1, padding: "8px 0", border: "none", borderRadius: 8,
                             background: "linear-gradient(135deg, #a78bfa, #7c3aed)",
                             color: "#fff", fontWeight: 700, fontSize: "0.78rem",
@@ -310,8 +354,8 @@ export default function KDS() {
                             👨‍🍳 Iniciar preparo
                           </button>
                         )}
-                        {status === "preparo" && (
-                          <button onClick={() => atualizarStatus(p.id, "pronto")} style={{
+                        {status === "preparo" && podeAvancar(status) && (
+                          <button onClick={() => atualizarStatus(p.id, isCozinha ? "pronto" : "pronto")} style={{
                             flex: 1, padding: "8px 0", border: "none", borderRadius: 8,
                             background: "linear-gradient(135deg, #22c55e, #15803d)",
                             color: "#fff", fontWeight: 700, fontSize: "0.78rem",
@@ -320,7 +364,7 @@ export default function KDS() {
                             ✅ Marcar pronto
                           </button>
                         )}
-                        {status === "pronto" && p.tipoEntrega === "entrega" && (
+                        {status === "pronto" && podeAvancar(status) && p.tipoEntrega === "entrega" && (
                           <button onClick={() => atualizarStatus(p.id, "entrega")} style={{
                             flex: 1, padding: "8px 0", border: "none", borderRadius: 8,
                             background: "linear-gradient(135deg, #f97316, #c2410c)",
@@ -330,7 +374,7 @@ export default function KDS() {
                             🛵 Saiu p/ entrega
                           </button>
                         )}
-                        {status === "pronto" && p.tipoEntrega === "retirada" && (
+                        {status === "pronto" && podeAvancar(status) && p.tipoEntrega === "retirada" && (
                           <button onClick={() => atualizarStatus(p.id, "entregue")} style={{
                             flex: 1, padding: "8px 0", border: "none", borderRadius: 8,
                             background: "linear-gradient(135deg, #22c55e, #15803d)",

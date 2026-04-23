@@ -3,9 +3,11 @@ import { collection, doc, getDoc, getDocs, onSnapshot, query, orderBy, setDoc, u
 import { db } from "../lib/firebase";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useStore } from "../contexts/StoreContext";
 
 export default function Cupons() {
   const { user } = useAuth();
+  const { tenantId } = useStore();
   const navigate = useNavigate();
   const [cupons, setCupons] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -116,7 +118,7 @@ export default function Cupons() {
             <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text)" }}>Siga a loja para pegar cupons</div>
             <div style={{ fontSize: "0.7rem", color: "var(--text3)" }}>Acesse o Feed e clique em ❤️ Seguir</div>
           </div>
-          <button onClick={() => navigate("/feed")} style={{ background: "linear-gradient(135deg, #ec4899, #be185d)", border: "none", borderRadius: 8, padding: "6px 12px", color: "#fff", fontWeight: 700, fontSize: "0.72rem", cursor: "pointer" }}>
+          <button onClick={() => navigate(tenantId ? `/loja/${tenantId}/feed` : "/feed")} style={{ background: "linear-gradient(135deg, #ec4899, #be185d)", border: "none", borderRadius: 8, padding: "6px 12px", color: "#fff", fontWeight: 700, fontSize: "0.72rem", cursor: "pointer" }}>
             Seguir
           </button>
         </div>

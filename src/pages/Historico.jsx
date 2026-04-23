@@ -408,7 +408,7 @@ export default function Historico() {
       });
       restoreCartFromPedido(carrinho);
       toast("Itens adicionados ao carrinho!");
-      navigate("/carrinho");
+      if (config?.tenantId) navigate(`/loja/${config.tenantId}/carrinho`);
     } catch (e) { toast("Erro ao pedir novamente", "error"); }
   };
 

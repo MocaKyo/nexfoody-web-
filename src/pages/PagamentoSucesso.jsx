@@ -1,12 +1,14 @@
 // src/pages/PagamentoSucesso.js
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, updateDoc, doc, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { useStore } from "../contexts/StoreContext";
 
 export default function PagamentoSucesso() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { confirmOrder } = useStore();
   const [status, setStatus] = useState("verificando");
 
   useEffect(() => {
@@ -16,11 +18,21 @@ export default function PagamentoSucesso() {
     const verificar = async () => {
       if (externalRef && paymentStatus === "approved") {
         try {
+          // Buscar total do pedido antes de atualizar
+          const pedidoSnap = await getDoc(doc(db, "pedidos", externalRef));
+          const pedidoData = pedidoSnap.exists() ? pedidoSnap.data() : null;
+          const total = pedidoData?.total || 0;
+          const jaConfirmado = pedidoData?.status === "confirmado";
+
           await updateDoc(doc(db, "pedidos", externalRef), {
             status: "confirmado",
             pagamento: "cartao",
             pago: true,
           });
+
+          // Middleware de pontos de ranking (fan points) — idempotente
+          if (total > 0 && !jaConfirmado) confirmOrder(externalRef, total);
+
           setStatus("aprovado");
         } catch { setStatus("aprovado"); }
       } else if (paymentStatus === "pending") {

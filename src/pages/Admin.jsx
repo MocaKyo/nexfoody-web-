@@ -1,16 +1,19 @@
 // src/pages/Admin.js
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { doc, collection, getDocs, updateDoc, increment, query, orderBy, onSnapshot, limit, setDoc, deleteDoc, serverTimestamp, where, addDoc, Timestamp, getDoc } from "firebase/firestore";
-import { db, storage } from "../lib/firebase";
+import { db, storage, auth } from "../lib/firebase";
 import { getApp } from "firebase/app";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useStore } from "../contexts/StoreContext";
+import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../components/Toast";
 import StoreLocationPicker from "../components/StoreLocationPicker";
 import PlaceSearch from "../components/PlaceSearch";
 import FeedRulesPanel from "../components/FeedRulesPanel";
 import PDVDrawer from "../components/PDVDrawer";
+import ChatEntregador from "../components/ChatEntregador";
+import ChatPage from "../pages/ChatPage";
 import { useNavigate } from "react-router-dom";
 
 const IMGBB_API_KEY = "4b8379f3bfc7eb113e0820730166a9f8";
@@ -39,7 +42,14 @@ const DASHBOARD_MENUS = [
   { id: 20, label: "Gerente IA",   emoji: "🤖", color: "#7c3aed" },
   { id: 21, label: "Dívidas",      emoji: "📑", color: "#ef4444" },
   { id: 22, label: "Aparência",    emoji: "🎨", color: "#ec4899" },
+  { id: 23, label: "Equipe",       emoji: "👥", color: "#14b8a6" },
+  { id: 24, label: "Dashboard Analytics", emoji: "📈", color: "#7c3aed" },
 ];
+
+import {
+  AreaChart, Area, BarChart, Bar,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+} from "recharts";
 
 const STATUS_LIST = [
   { id: "aguardando_confirmacao", label: "Aguard. confirm.", icon: "💬", color: "#22d3ee" },
@@ -325,6 +335,7 @@ function DashboardHeader({ onSelectMenu, menuOrder, dashboardMenus, onEditCards 
       <style>{`
         @keyframes plive  { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
         @keyframes pbadge { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.5)} 70%{box-shadow:0 0 0 5px rgba(239,68,68,0)} }
+        @keyframes pulseAlerta { 0%,100%{box-shadow:0 0 0 0 currentColor} 50%{box-shadow:0 0 12px 3px currentColor} }
         .dm-card:active { transform:scale(.96); }
         .acao-pill { flex-shrink:0; border:none; font-family:'Outfit',sans-serif; font-weight:700; font-size:.73rem; cursor:pointer; white-space:nowrap; transition:opacity .15s; }
         .acao-pill:active { opacity:.65; }
@@ -396,6 +407,47 @@ function DashboardHeader({ onSelectMenu, menuOrder, dashboardMenus, onEditCards 
             </div>
           ))}
         </div>
+
+        {/* ── BARRA DE PROGRESSO VENDAS ─── */}
+        {(() => {
+          const meta = config.metaFaturamento || 1500;
+          const pct = Math.min((receitaHoje / meta) * 100, 100);
+          const falta = Math.max(meta - receitaHoje, 0);
+          const ticket = pedidosHoje > 0 ? receitaHoje / pedidosHoje : 0;
+          return (
+            <div style={{ marginTop: 10, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 14, padding: "12px 14px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <div style={{ fontSize: "0.68rem", fontWeight: 800, color: "#22c55e", textTransform: "uppercase", letterSpacing: ".08em" }}>💰 VENDAS DO DIA</div>
+                <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,.4)", fontWeight: 600 }}>{config.nomeLoja || "Loja"}</div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                <div style={{ fontSize: "1.1rem", fontWeight: 900, color: "#22c55e" }}>{receitaFmt}</div>
+                <div style={{ fontSize: "0.78rem", color: "rgba(255,255,255,.4)", fontWeight: 600 }}>R$ {meta.toLocaleString("pt-BR")}</div>
+              </div>
+              <div style={{ height: 10, borderRadius: 5, background: "rgba(255,255,255,.08)", overflow: "hidden", marginBottom: 6 }}>
+                <div style={{
+                  height: "100%", width: `${pct}%`,
+                  background: pct >= 100
+                    ? "linear-gradient(90deg, #22c55e, #4ade80)"
+                    : pct >= 60
+                    ? "linear-gradient(90deg, #22c55e, #86efac)"
+                    : "linear-gradient(90deg, #22c55e, #bef264)",
+                  borderRadius: 5, transition: "width .4s ease",
+                  boxShadow: "0 0 12px rgba(34,197,94,.5)",
+                }} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontSize: "0.65rem", fontWeight: 700, color: pct >= 100 ? "#4ade80" : "rgba(255,255,255,.45)" }}>
+                  {pct >= 100 ? "🎉 Meta batida!" : `⚡ Faltam R$ ${falta.toLocaleString("pt-BR")}`}
+                </div>
+                <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,.35)" }}>
+                  🔥 {pedidosHoje} pedidos | Ticket: R$ {ticket.toFixed(2).replace(".", ",")}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
       </div>
 
       {/* ── 3. AÇÕES RÁPIDAS ──────────────────────────────── */}
@@ -639,7 +691,7 @@ export default function Admin() {
           <button className="dash-back-btn" onClick={handleBackToDashboard}>
             ← Dashboard
           </button>
-          {tab === 0 && <TabPedidos onNovoPedido={() => setNovoPedidoBadge(n => n + 1)} />}
+          {tab === 0 && <TabPedidos onNovoPedido={() => setNovoPedidoBadge(n => n + 1)} onNavigate={setTab} />}
           {tab === 1 && <TabHistorico />}
           {tab === 2 && <TabCardapio />}
           {tab === 3 && <TabCategorias />}
@@ -662,6 +714,8 @@ export default function Admin() {
           {tab === 20 && <TabGerenteIA />}
           {tab === 21 && <TabDividas />}
           {tab === 22 && <TabAparencia />}
+          {tab === 23 && <TabEquipe />}
+          {tab === 24 && <TabDashboardAnalytics />}
         </>
       )}
 
@@ -677,6 +731,331 @@ export default function Admin() {
         />
       )}
 
+    </div>
+  );
+}
+
+// ===== DASHBOARD ANALYTICS =====
+function TabDashboardAnalytics() {
+  const { tenantId } = useStore();
+  const [periodo, setPeriodo] = useState("7d");
+  const [pedidos, setPedidos] = useState([]);
+  const [pedidosAnterior, setPedidosAnterior] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const getPeriodDates = (p) => {
+    const agora = new Date();
+    const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    if (p === "hoje") {
+      return { inicio: new Date(hoje), fim: new Date(hoje.getTime() + 86400000 - 1) };
+    } else if (p === "7d") {
+      const inicio = new Date(hoje); inicio.setDate(inicio.getDate() - 6);
+      const fim = new Date(hoje); fim.setTime(fim.getTime() + 86400000 - 1);
+      return { inicio, fim };
+    } else {
+      const inicio = new Date(hoje); inicio.setDate(inicio.getDate() - 29);
+      const fim = new Date(hoje); fim.setTime(fim.getTime() + 86400000 - 1);
+      return { inicio, fim };
+    }
+  };
+
+  const getAnteriorDates = (p) => {
+    const agora = new Date();
+    const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    if (p === "hoje") {
+      const inicio = new Date(hoje); inicio.setDate(inicio.getDate() - 1);
+      const fim = new Date(inicio.getTime() + 86400000 - 1);
+      return { inicio, fim };
+    } else if (p === "7d") {
+      const inicio = new Date(hoje); inicio.setDate(inicio.getDate() - 13);
+      const fim = new Date(hoje); fim.setDate(fim.getDate() - 7); fim.setTime(fim.getTime() + 86400000 - 1);
+      return { inicio, fim };
+    } else {
+      const inicio = new Date(hoje); inicio.setDate(inicio.getDate() - 59);
+      const fim = new Date(hoje); fim.setDate(fim.getDate() - 30); fim.setTime(fim.getTime() + 86400000 - 1);
+      return { inicio, fim };
+    }
+  };
+
+  useEffect(() => {
+    if (!tenantId) return;
+    setLoading(true);
+    const { inicio, fim } = getPeriodDates(periodo);
+    const q = query(
+      collection(db, "pedidos"),
+      where("tenantId", "==", tenantId),
+      where("createdAt", ">=", Timestamp.fromDate(inicio)),
+      where("createdAt", "<=", Timestamp.fromDate(fim)),
+      orderBy("createdAt", "desc"),
+      limit(500)
+    );
+    const unsub = onSnapshot(q, snap => {
+      setPedidos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    });
+    return unsub;
+  }, [tenantId, periodo]);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    const { inicio, fim } = getAnteriorDates(periodo);
+    const q = query(
+      collection(db, "pedidos"),
+      where("tenantId", "==", tenantId),
+      where("createdAt", ">=", Timestamp.fromDate(inicio)),
+      where("createdAt", "<=", Timestamp.fromDate(fim)),
+      limit(500)
+    );
+    const unsub = onSnapshot(q, snap => {
+      setPedidosAnterior(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, [tenantId, periodo]);
+
+  const fmt = v => v != null ? `R$ ${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—";
+
+  const pct = (a, b) => {
+    if (!b) return null;
+    const p = ((a - b) / b) * 100;
+    return { val: Math.abs(p).toFixed(1), up: p >= 0 };
+  };
+
+  const validos = pedidos.filter(p => p.status !== "cancelado");
+  const validosAnt = pedidosAnterior.filter(p => p.status !== "cancelado");
+
+  const faturamento = validos.reduce((s, p) => s + (p.total || 0), 0);
+  const fatAnterior = validosAnt.reduce((s, p) => s + (p.total || 0), 0);
+  const ticketMedio = validos.length ? faturamento / validos.length : 0;
+  const ticketAnt = validosAnt.length ? fatAnterior / validosAnt.length : 0;
+
+  const userIds = [...new Set(validos.map(p => p.userId).filter(Boolean))];
+  const userIdsAnt = [...new Set(validosAnt.map(p => p.userId).filter(Boolean))];
+
+  const cancelados = pedidos.filter(p => p.status === "cancelado");
+  const taxaCancel = pedidos.length > 0 ? (cancelados.length / pedidos.length) * 100 : 0;
+  const taxaCancelAnt = pedidosAnterior.length > 0
+    ? (pedidosAnterior.filter(p => p.status === "cancelado").length / pedidosAnterior.length) * 100
+    : 0;
+
+  // Produtos mais vendidos
+  const produtosMap = {};
+  validos.forEach(p => {
+    (p.items || []).forEach(item => {
+      if (!produtosMap[item.nome]) produtosMap[item.nome] = { qty: 0, total: 0 };
+      produtosMap[item.nome].qty += item.qty || 1;
+      produtosMap[item.nome].total += (item.preco || 0) * (item.qty || 1);
+    });
+  });
+  const topProdutos = Object.entries(produtosMap)
+    .sort((a, b) => b[1].qty - a[1].qty)
+    .slice(0, 5);
+
+  const totalProdutos = topProdutos.length > 0 ? topProdutos[0][1].qty : 1;
+
+  // Formas de pagamento
+  const pagMap = {};
+  validos.forEach(p => {
+    const pg = p.pagamento || "outro";
+    if (!pagMap[pg]) pagMap[pg] = { qty: 0, total: 0 };
+    pagMap[pg].qty++;
+    pagMap[pg].total += p.total || 0;
+  });
+  const pagamentoData = Object.entries(pagMap)
+    .sort((a, b) => b[1].total - a[1].total);
+
+  // Chart data
+  const { inicio, fim } = getPeriodDates(periodo);
+  const dias = Math.ceil((fim - inicio) / 86400000) + 1;
+  const chartData = Array.from({ length: dias }, (_, i) => {
+    const dia = new Date(inicio);
+    dia.setDate(dia.getDate() + i);
+    const diaStr = dia.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    const dayPedidos = validos.filter(p => {
+      const d = p.createdAt?.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
+      return d.toDateString() === dia.toDateString();
+    });
+    return {
+      dia: diaStr,
+      faturamento: dayPedidos.reduce((s, p) => s + (p.total || 0), 0),
+      pedidos: dayPedidos.length,
+    };
+  });
+
+  function KPICard({ icon, titulo, valor, variacao, cor, invertVariation }) {
+    return (
+      <div style={{
+        background: "rgba(255,255,255,.04)",
+        border: "1px solid rgba(255,255,255,.08)",
+        borderRadius: 16, padding: "14px 12px",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: `${cor}18`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "1rem"
+          }}>{icon}</div>
+          {variacao && (
+            <span style={{
+              fontSize: "0.6rem", fontWeight: 800, padding: "3px 7px", borderRadius: 20,
+              color: (invertVariation ? !variacao.up : variacao.up) ? "#22c55e" : "#ef4444",
+              background: (invertVariation ? !variacao.up : variacao.up) ? "rgba(34,197,94,.12)" : "rgba(239,68,68,.12)"
+            }}>
+              {variacao.up ? "↑" : "↓"} {variacao.val}%
+            </span>
+          )}
+        </div>
+        <div style={{ fontWeight: 900, fontSize: "1.05rem", color: cor }}>{valor}</div>
+        <div style={{ fontSize: "0.6rem", color: "rgba(255,255,255,.35)", textTransform: "uppercase", letterSpacing: ".06em", marginTop: 3 }}>{titulo}</div>
+      </div>
+    );
+  }
+
+  function CustomTooltip({ active, payload, label }) {
+    if (!active || !payload?.length) return null;
+    return (
+      <div style={{
+        background: "rgba(15,7,32,.97)",
+        border: "1px solid rgba(255,255,255,.12)",
+        borderRadius: 10, padding: "10px 14px"
+      }}>
+        <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,.5)", marginBottom: 4 }}>{label}</div>
+        {payload.map((p, i) => (
+          <div key={i} style={{ fontSize: "0.8rem", fontWeight: 800, color: p.color }}>
+            {p.name === "faturamento" ? fmt(p.value) : `${p.value} pedidos`}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: "center", padding: "60px 20px", color: "rgba(255,255,255,.4)" }}>
+        Carregando analytics...
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "20px 16px" }}>
+      {/* Period selector */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        {["hoje", "7d", "30d"].map(p => (
+          <button key={p} onClick={() => setPeriodo(p)} style={{
+            padding: "7px 18px", borderRadius: 10, border: "none", fontWeight: 700,
+            fontSize: "0.78rem", cursor: "pointer",
+            background: periodo === p ? "#7c3aed" : "rgba(255,255,255,.06)",
+            color: periodo === p ? "#fff" : "rgba(255,255,255,.5)",
+            fontFamily: "'Outfit',sans-serif",
+          }}>
+            {p === "hoje" ? "HOJE" : p === "7d" ? "7 DIAS" : "30 DIAS"}
+          </button>
+        ))}
+      </div>
+
+      {/* KPI cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
+        <KPICard icon="💰" titulo="Faturamento" valor={fmt(faturamento)} variacao={pct(faturamento, fatAnterior)} cor="#22c55e" />
+        <KPICard icon="📋" titulo="Pedidos" valor={validos.length} variacao={pct(validos.length, validosAnt.length)} cor="#f5c518" />
+        <KPICard icon="📊" titulo="Ticket Médio" valor={fmt(ticketMedio)} variacao={pct(ticketMedio, ticketAnt)} cor="#60a5fa" />
+        <KPICard icon="👥" titulo="Novos Clientes" valor={userIds.length} variacao={pct(userIds.length, userIdsAnt.length)} cor="#a78bfa" />
+        <KPICard icon="❌" titulo="Taxa Cancelamento" valor={`${taxaCancel.toFixed(1)}%`} variacao={pct(taxaCancel, taxaCancelAnt)} cor="#ef4444" invertVariation />
+        <KPICard icon="🍽️" titulo="Produtos Vendidos" valor={topProdutos.reduce((s, [, d]) => s + d.qty, 0)} cor="#f97316" />
+      </div>
+
+      {/* Charts row */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+        {/* Faturamento chart */}
+        <div style={{
+          background: "rgba(255,255,255,.04)",
+          border: "1px solid rgba(255,255,255,.08)",
+          borderRadius: 16, padding: 16
+        }}>
+          <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "rgba(255,255,255,.5)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>💰 Faturamento</div>
+          <ResponsiveContainer width="100%" height={180}>
+            <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <defs>
+                <linearGradient id="gradFat" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#22c55e" stopOpacity={.4}/>
+                  <stop offset="95%" stopColor="#22c55e" stopOpacity={.05}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" />
+              <XAxis dataKey="dia" tick={{ fontSize: 10, fill: "rgba(255,255,255,.4)" }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "rgba(255,255,255,.4)" }} tickLine={false} axisLine={false}
+                tickFormatter={v => v >= 1000 ? `R$${(v/1000).toFixed(0)}k` : `R$${v}`} />
+              <Tooltip content={<CustomTooltip />} />
+              <Area type="monotone" dataKey="faturamento" stroke="#22c55e" strokeWidth={2} fill="url(#gradFat)" name="faturamento" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Pedidos chart */}
+        <div style={{
+          background: "rgba(255,255,255,.04)",
+          border: "1px solid rgba(255,255,255,.08)",
+          borderRadius: 16, padding: 16
+        }}>
+          <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "rgba(255,255,255,.5)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>📋 Pedidos</div>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.06)" />
+              <XAxis dataKey="dia" tick={{ fontSize: 10, fill: "rgba(255,255,255,.4)" }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "rgba(255,255,255,.4)" }} tickLine={false} axisLine={false} allowDecimals={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="pedidos" fill="#f5c518" radius={[4, 4, 0, 0]} name="pedidos" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Bottom row */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        {/* Top produtos */}
+        <div style={{
+          background: "rgba(255,255,255,.04)",
+          border: "1px solid rgba(255,255,255,.08)",
+          borderRadius: 16, padding: 16
+        }}>
+          <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "rgba(255,255,255,.5)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>🏆 Top Produtos</div>
+          {topProdutos.length === 0 && (
+            <div style={{ color: "rgba(255,255,255,.3)", fontSize: "0.8rem" }}>Nenhum produto vendido no período</div>
+          )}
+          {topProdutos.map(([nome, dados], i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <span style={{ fontSize: "0.7rem", fontWeight: 800, color: i === 0 ? "#f5c518" : "rgba(255,255,255,.4)", width: 16 }}>#{i + 1}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "0.78rem", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nome}</div>
+                <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,.08)", marginTop: 4 }}>
+                  <div style={{ height: "100%", borderRadius: 2, background: "#f5c518", width: `${(dados.qty / totalProdutos) * 100}%` }} />
+                </div>
+              </div>
+              <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#f5c518", flexShrink: 0 }}>{dados.qty}x</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Formas de pagamento */}
+        <div style={{
+          background: "rgba(255,255,255,.04)",
+          border: "1px solid rgba(255,255,255,.08)",
+          borderRadius: 16, padding: 16
+        }}>
+          <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "rgba(255,255,255,.5)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 12 }}>💳 Formas de Pagamento</div>
+          {pagamentoData.map(({ tipo, qty, total }) => (
+            <div key={tipo} style={{ marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: "0.78rem", fontWeight: 600 }}>{tipo}</span>
+                <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,.4)" }}>{qty} pedidos · {fmt(total)}</span>
+              </div>
+              <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,.08)" }}>
+                <div style={{ height: "100%", borderRadius: 3, background: "#7c3aed", width: `${faturamento > 0 ? (total / faturamento) * 100 : 0}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -743,7 +1122,7 @@ function EditarCardsModal({ menus, onSave, onClose }) {
 }
 
 // ===== PEDIDOS =====// ===== PEDIDOS =====
-function TabPedidos({ onNovoPedido }) {
+function TabPedidos({ onNovoPedido, onNavigate }) {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandido, setExpandido] = useState(null);
@@ -753,12 +1132,133 @@ function TabPedidos({ onNovoPedido }) {
   const [impressaoAtiva, setImpressaoAtiva] = useState(true);
   const [ativado, setAtivado] = useState(false);
   const [enviandoVideo, setEnviandoVideo] = useState(null); // pedidoId em upload
+  const [modoSelecao, setModoSelecao] = useState(false); // modo seleção múltipla
+  const [selecionados, setSelecionados] = useState(new Set()); // IDs selecionados
   const pedidosAnteriores = useRef(null);
   const videoInputRef = useRef(null);
   const videoPedidoRef = useRef(null); // pedido alvo do upload
   const { tenantId } = useStore();
   const t = (c) => tenantId ? `tenants/${tenantId}/${c}` : c;
   const { tocarNovoPedido, setSilenciado } = useSom();
+
+  // ── Chat Entregador Full Screen ──────────────────────────────
+  function ChatEntregadorFullScreen() {
+    const [pedidosComEntregador, setPedidosComEntregador] = useState([]);
+    const [chatAberto, setChatAberto] = useState(null);
+    const { tenantId } = useStore();
+
+    useEffect(() => {
+      if (!tenantId) return;
+      const q = query(collection(db, "pedidos"), where("tenantId", "==", tenantId), where("status", "in", ["entrega", "pronto"]));
+      return onSnapshot(q, snap => {
+        setPedidosComEntregador(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.entregadorId));
+      });
+    }, [tenantId]);
+
+    if (chatAberto) {
+      return (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "10px 16px", background: "var(--bg2)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={() => setChatAberto(null)} style={{ background: "none", border: "none", color: "var(--text)", cursor: "pointer", fontSize: "1rem" }}>←</button>
+            <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>🛵 Chat com Entregador</span>
+          </div>
+          <div style={{ flex: 1 }}>
+            <ChatEntregador pedidoId={chatAberto.pedidoId} entregadorId={chatAberto.entregadorId} onClose={() => setChatAberto(null)} />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+        <div style={{ fontSize: "0.72rem", color: "var(--text3)", marginBottom: 12 }}>🛵 Pedidos com entregador</div>
+        {pedidosComEntregador.length === 0 && (
+          <div style={{ textAlign: "center", color: "var(--text2)", padding: 32 }}>Nenhum pedido em entrega</div>
+        )}
+        {pedidosComEntregador.map(p => (
+          <div key={p.id} onClick={() => setChatAberto({ pedidoId: p.id, entregadorId: p.entregadorId })}
+            style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 12, padding: 14, marginBottom: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ fontSize: "2rem" }}>🛵</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: "0.9rem" }}>{p.nomeCliente}</div>
+              <div style={{ fontSize: "0.72rem", color: "var(--text3)" }}>Pedido #{p.numeroPedido}</div>
+              {p.entregadorNome && <div style={{ fontSize: "0.72rem", color: "var(--text2)" }}>Motorista: {p.entregadorNome}</div>}
+            </div>
+            <div style={{ color: "var(--text3)", fontSize: "1.2rem" }}>💬</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── Chat Cliente Full Screen ──────────────────────────────────
+  function ChatPageFullScreen() {
+    const [chats, setChats] = useState([]);
+    const [chatSelecionado, setChatSelecionado] = useState(null);
+    const [lojaDocId, setLojaDocId] = useState(null);
+    const { tenantId } = useStore();
+
+    useEffect(() => {
+      if (!tenantId) return;
+      getDocs(query(collection(db, "lojas"), where("tenantId", "==", tenantId), limit(1))).then(snap => {
+        if (!snap.empty) setLojaDocId(snap.docs[0].id);
+      });
+    }, [tenantId]);
+
+    useEffect(() => {
+      if (!lojaDocId) return;
+      const lojaVirtualId = `loja_${lojaDocId}`;
+      const q = query(collection(db, "chats"), where("participantes", "array-contains", lojaVirtualId));
+      return onSnapshot(q, snap => {
+        setChats(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0)));
+      });
+    }, [lojaDocId]);
+
+    const lojaVirtualId = lojaDocId ? `loja_${lojaDocId}` : null;
+
+    if (chatSelecionado) {
+      return (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "10px 16px", background: "var(--bg2)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={() => setChatSelecionado(null)} style={{ background: "none", border: "none", color: "var(--text)", cursor: "pointer", fontSize: "1rem" }}>←</button>
+            <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>💬 Chat</span>
+          </div>
+          <div style={{ flex: 1 }}>
+            <ChatPage chatId={chatSelecionado} />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+        <div style={{ fontSize: "0.72rem", color: "var(--text3)", marginBottom: 12 }}>💬 Conversas com clientes</div>
+        {chats.length === 0 && (
+          <div style={{ textAlign: "center", color: "var(--text2)", padding: 32 }}>Nenhuma conversa ainda</div>
+        )}
+        {chats.map(c => {
+          const outroId = c.participantes?.find(p => !p.startsWith("loja_"));
+          const outroInfo = c.participantesInfo?.[outroId] || {};
+          const naoLido = lojaVirtualId ? (c.naoLido?.[lojaVirtualId] || 0) : 0;
+          return (
+            <div key={c.id} onClick={() => setChatSelecionado(c.id)}
+              style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 12, padding: 14, marginBottom: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--bg3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem", flexShrink: 0 }}>
+                {outroInfo.foto ? <img src={outroInfo.foto} alt="" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} /> : "👤"}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: "0.88rem" }}>{outroInfo.nome || "Cliente"}</div>
+                <div style={{ fontSize: "0.7rem", color: "var(--text3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.ultimaMensagem?.texto || "—"}</div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                {naoLido > 0 && <div style={{ background: "var(--purple2)", color: "#fff", borderRadius: 20, padding: "2px 8px", fontSize: "0.62rem", fontWeight: 800 }}>{naoLido}</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   const ativarAudio = () => {
     if (!ativado) {
@@ -830,6 +1330,77 @@ function TabPedidos({ onNovoPedido }) {
     ativarAudio();
   };
 
+  // ── Seleção múltipla ──
+  const toggleSelecao = () => {
+    if (modoSelecao) {
+      setSelecionados(new Set());
+    }
+    setModoSelecao(!modoSelecao);
+  };
+
+  const togglePedido = (id) => {
+    const novo = new Set(selecionados);
+    if (novo.has(id)) novo.delete(id);
+    else novo.add(id);
+    setSelecionados(novo);
+  };
+
+  const batchAvancar = async (novoStatus) => {
+    if (selecionados.size === 0) return;
+    if (!window.confirm(`Confirmar ${selecionados.size} pedido(s) para "${novoStatus}"?`)) return;
+    ativarAudio();
+    setAtualizando("batch");
+    try {
+      await Promise.all([...selecionados].map(id => updateDoc(doc(db, "pedidos", id), { status: novoStatus })));
+      setSelecionados(new Set());
+      setModoSelecao(false);
+    } catch { alert("Erro ao atualizar pedidos."); }
+    finally { setAtualizando(null); }
+  };
+
+  const batchCancelar = async () => {
+    if (selecionados.size === 0) return;
+    if (!window.confirm(`Cancelar ${selecionados.size} pedido(s)?`)) return;
+    ativarAudio();
+    setAtualizando("batch");
+    try {
+      await Promise.all([...selecionados].map(id => updateDoc(doc(db, "pedidos", id), { status: "cancelado" })));
+      setSelecionados(new Set());
+      setModoSelecao(false);
+    } catch { alert("Erro ao cancelar pedidos."); }
+    finally { setAtualizando(null); }
+  };
+
+  // ── View mode Kanban / Lista ──
+  const [viewMode, setViewMode] = useState("kanban");
+  // ── Tempo atual para mostrar nos cards (atualiza a cada 30s) ──
+  const [tempoCards, setTempoCards] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setTempoCards(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  // ── SLA thresholds por status (minutos) — verde / amarelo / vermelho ──
+  // Total máx: 30min do pedido até o cliente
+  const SLA_KANBAN = {
+    pendente: { yellow: 1, red: 2 },   // confirmação rápida
+    preparo:  { yellow: 10, red: 20 }, // tempo maior de produção
+    pronto:   { yellow: 5, red: 7 },   // transição rápida
+    entrega:  { yellow: 25, red: 30 }, // último estágio
+    entregue: { yellow: 999, red: 999 },
+  };
+
+  // ── Cor e animação de alerta por tempo e status ──
+  const getCardAlerta = (pedido, statusId, now) => {
+    if (!pedido.createdAt) return { cor: "rgba(34,197,94,0.5)", anim: "none" };
+    const d = pedido.createdAt?.toDate ? pedido.createdAt.toDate() : new Date(pedido.createdAt);
+    const min = Math.floor((now - d.getTime()) / 60000);
+    const t = SLA_KANBAN[statusId] || { yellow: 5, red: 10 };
+    if (min >= t.red) return { cor: "rgba(239,68,68,0.7)", anim: "pulseAlerta 1.5s ease-in-out infinite" };
+    if (min >= t.yellow) return { cor: "rgba(245,158,11,0.6)", anim: "pulseAlerta 2.5s ease-in-out infinite" };
+    return { cor: "rgba(34,197,94,0.4)", anim: "none" };
+  };
+
   useEffect(() => {
     if (!tenantId) return;
     const q = query(
@@ -868,12 +1439,108 @@ function TabPedidos({ onNovoPedido }) {
     if (Notification.permission === "default") Notification.requestPermission();
   }, []);
 
+  // ── Stats de hoje vs ontem + padrão semanal ──
+  const [stats, setStats] = useState({ hoje: 0, ontem: 0, fatHoje: 0, fatOntem: 0, melhorDia: null, piorDia: null });
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  // ── Notificação flutuante de chat ──
+  const [chatNotif, setChatNotif] = useState(null); // { chatId, nome, foto, mensagem, chatId }
+
+  useEffect(() => {
+    if (!tenantId) return;
+    const lojaDocId = tenantId;
+    const lojaVirtualId = `loja_${lojaDocId}`;
+    const q = query(collection(db, "chats"), where("participantes", "array-contains", lojaVirtualId));
+    const unsub = onSnapshot(q, snap => {
+      snap.docs.forEach(d => {
+        const chat = { id: d.id, ...d.data() };
+        const ultimo = chat.ultimaMensagem;
+        if (!ultimo) return;
+        // Só mostra se a última mensagem foi do cliente (não da loja) e é nova (últimos 30s)
+        if (ultimo.autorId === lojaVirtualId) return;
+        const agora = Date.now();
+        const msgTime = ultimo.criadoEm?.toMillis ? ultimo.criadoEm.toMillis() : 0;
+        if (agora - msgTime > 30000) return; // só últimas 30s
+        // Pega info do cliente
+        const outroId = chat.participantes?.find(p => !p.startsWith("loja_"));
+        const info = chat.participantesInfo?.[outroId] || {};
+        setChatNotif({
+          chatId: chat.id,
+          nome: info.nome || "Cliente",
+          foto: info.foto || null,
+          mensagem: ultimo.texto || "📷 Nova mensagem",
+        });
+      });
+    });
+    return unsub;
+  }, [tenantId]);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    const agora = new Date();
+    const inicioHoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    const inicioOntem = new Date(inicioHoje);
+    inicioOntem.setDate(inicioOntem.getDate() - 1);
+    const inicioMes = new Date(inicioHoje);
+    inicioMes.setDate(inicioMes.getDate() - 30);
+
+    Promise.all([
+      getDocs(query(collection(db, "pedidos"), where("tenantId", "==", tenantId), where("createdAt", ">=", Timestamp.fromDate(inicioHoje)))),
+      getDocs(query(collection(db, "pedidos"), where("tenantId", "==", tenantId), where("createdAt", ">=", Timestamp.fromDate(inicioOntem)), where("createdAt", "<", Timestamp.fromDate(inicioHoje)))),
+      getDocs(query(collection(db, "pedidos"), where("tenantId", "==", tenantId), where("createdAt", ">=", Timestamp.fromDate(inicioMes)))),
+    ]).then(([snapHoje, snapOntem, snapMes]) => {
+      const pedidosHoje = snapHoje.docs.filter(d => d.data().status !== "cancelado");
+      const pedidosOntem = snapOntem.docs.filter(d => d.data().status !== "cancelado");
+      const pedidosMes = snapMes.docs.filter(d => d.data().status !== "cancelado");
+
+      const fatHoje = pedidosHoje.reduce((s, d) => s + (d.data().total || 0), 0);
+      const fatOntem = pedidosOntem.reduce((s, d) => s + (d.data().total || 0), 0);
+
+      // Padrão semanal (últimos 30 dias)
+      const dias = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+      const somaPorDia = Array(7).fill(0);
+      const countPorDia = Array(7).fill(0);
+      pedidosMes.forEach(d => {
+        const dt = d.data().createdAt?.toDate ? d.data().createdAt.toDate() : new Date(d.data().createdAt);
+        somaPorDia[dt.getDay()] += d.data().total || 0;
+        countPorDia[dt.getDay()]++;
+      });
+      const mediaPorDia = somaPorDia.map((s, i) => countPorDia[i] > 0 ? s / countPorDia[i] : 0);
+      const maxMedia = Math.max(...mediaPorDia);
+      const minMedia = Math.min(...mediaPorDia.filter(v => v > 0));
+      const melhorDia = dias[mediaPorDia.indexOf(maxMedia)];
+      const piorDia = dias[mediaPorDia.indexOf(minMedia === maxMedia ? mediaPorDia.find(v => v > 0 && v < maxMedia) : minMedia)];
+
+      setStats({
+        hoje: pedidosHoje.length,
+        ontem: pedidosOntem.length,
+        fatHoje,
+        fatOntem,
+        melhorDia,
+        piorDia,
+      });
+      setStatsLoading(false);
+    });
+  }, [tenantId, pedidos.length]); // atualiza quando pedidos mudam
+
   // Atualiza status SEM abrir WhatsApp — Firebase Function cuida das notificações
   const atualizarStatus = async (pedidoId, novoStatus) => {
     ativarAudio();
     setAtualizando(pedidoId);
     try {
+      const user = auth?.currentUser;
       await updateDoc(doc(db, "pedidos", pedidoId), { status: novoStatus });
+      // Audit log
+      await addDoc(collection(db, "auditLog"), {
+        uid: user?.uid || "desconhecido",
+        nome: user?.displayName || user?.email || "—",
+        action: "status_update",
+        pedidoId,
+        antigo: "", // simplificado — não temos o status anterior salvo aqui
+        novo: novoStatus,
+        tenantId,
+        createdAt: serverTimestamp(),
+      });
     } catch { alert("Erro ao atualizar status."); }
     finally { setAtualizando(null); }
   };
@@ -978,7 +1645,68 @@ function TabPedidos({ onNovoPedido }) {
   if (loading) return <div style={{ textAlign: "center", padding: 40, color: "var(--text2)" }}>Carregando pedidos...</div>;
 
   return (
-    <div onClick={ativarAudio}>
+    <div onClick={ativarAudio} style={{ position: "relative" }}>
+      {/* ── Notificação flutuante de chat ── */}
+      {chatNotif && (
+        <div
+          onClick={() => { setFiltro("chatCliente"); setChatNotif(null); }}
+          style={{
+            position: "fixed", bottom: 24, right: 24, zIndex: 9999,
+            background: "linear-gradient(135deg, #7c3aed, #5b21b6)",
+            border: "2px solid rgba(139,92,246,0.5)",
+            borderRadius: 16, padding: "12px 16px",
+            display: "flex", alignItems: "center", gap: 12,
+            boxShadow: "0 8px 32px rgba(124,58,237,0.4)",
+            cursor: "pointer", maxWidth: 300,
+            animation: "fadeInUp 0.3s ease",
+          }}
+        >
+          <style>{`@keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }`}</style>
+          <div style={{ width: 44, height: 44, borderRadius: "50%", background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+            {chatNotif.foto ? <img src={chatNotif.foto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "👤"}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: "0.85rem", color: "#fff", marginBottom: 2 }}>{chatNotif.nome}</div>
+            <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: "0.75rem", color: "rgba(255,255,255,0.8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{chatNotif.mensagem}</div>
+          </div>
+          <button onClick={e => { e.stopPropagation(); setChatNotif(null); }} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: "1rem", padding: 4, flexShrink: 0 }}>✕</button>
+        </div>
+      )}
+
+      {/* ── Barra de Stats ── */}
+      {!statsLoading && (
+        <div style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.15), rgba(6,182,212,0.1))", border: "1px solid rgba(124,58,237,0.25)", borderRadius: 12, padding: "10px 16px", marginBottom: 16, display: "flex", flexWrap: "wrap", gap: "12px 24px", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: "0.85rem" }}>🛒</span>
+            <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: "0.82rem", color: "var(--text2)" }}>Hoje:</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: "1rem", color: "var(--purple2)" }}>{stats.hoje}</span>
+            <span style={{ fontSize: "0.72rem", color: stats.hoje >= stats.ontem ? "var(--green)" : "var(--red)" }}>
+              {stats.ontem > 0 ? `(${stats.hoje >= stats.ontem ? "↑" : "↓"} ${Math.round(Math.abs(stats.hoje - stats.ontem) / stats.ontem * 100)}% vs ontem)` : "(primeiro dia)"}
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: "0.85rem" }}>💰</span>
+            <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: "0.82rem", color: "var(--text2)" }}>Faturamento:</span>
+            <span style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: "1rem", color: "var(--gold)" }}>R$ {stats.fatHoje.toFixed(2).replace(".", ",")}</span>
+          </div>
+          {stats.fatHoje > 0 && stats.hoje > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: "0.85rem" }}>⭐</span>
+              <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: "0.82rem", color: "var(--text2)" }}>Ticket:</span>
+              <span style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: "0.95rem", color: "var(--green)" }}>R$ {(stats.fatHoje / stats.hoje).toFixed(2).replace(".", ",")}</span>
+            </div>
+          )}
+          {stats.melhorDia && stats.piorDia && (
+            <div style={{ marginLeft: "auto", background: "rgba(245,197,24,0.1)", border: "1px solid rgba(245,197,24,0.25)", borderRadius: 8, padding: "4px 10px", display: "flex", gap: 8, alignItems: "center" }}>
+              <span style={{ fontSize: "0.72rem", color: "var(--gold)" }}>📊 {stats.melhorDia} é o dia mais forte · {stats.piorDia} é o mais fraco</span>
+              <button onClick={() => onNavigate(6)} style={{ background: "rgba(245,197,24,0.2)", border: "1px solid rgba(245,197,24,0.4)", borderRadius: 6, padding: "2px 8px", cursor: "pointer", color: "var(--gold)", fontFamily: "'Outfit', sans-serif", fontSize: "0.68rem", fontWeight: 700 }}>
+                Ver detalhes →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <div style={{ fontSize: "0.78rem", color: "var(--text3)" }}>{pedidos.length} pedido(s) · tempo real</div>
         <div style={{ display: "flex", gap: 6 }}>
@@ -1000,17 +1728,69 @@ function TabPedidos({ onNovoPedido }) {
           }}>
             {impressaoAtiva ? "🖨️ Auto" : "🖨️ Off"}
           </button>
+          <button onClick={toggleSelecao} style={{
+            background: modoSelecao ? "rgba(168,85,247,0.3)" : "rgba(168,85,247,0.15)",
+            border: `1px solid ${modoSelecao ? "#a855f7" : "rgba(168,85,247,0.5)"}`,
+            borderRadius: 20, padding: "6px 14px", cursor: "pointer",
+            color: modoSelecao ? "#e879f9" : "#c084fc",
+            fontFamily: "'Outfit', sans-serif", fontSize: "0.8rem", fontWeight: 700,
+            boxShadow: modoSelecao ? "0 0 12px rgba(168,85,247,0.3)" : "none",
+            transition: "all 0.2s",
+          }}>
+            {modoSelecao ? "✕ Sair" : "☑️ Selecionar"}
+          </button>
         </div>
       </div>
 
-      {!ativado && (
-        <div style={{ background: "rgba(245,197,24,0.08)", border: "1px solid rgba(245,197,24,0.2)", borderRadius: "var(--radius-sm)", padding: "10px 14px", marginBottom: 12, fontSize: "0.78rem", color: "var(--gold)" }}>
-          💡 Toque em qualquer lugar para ativar o som
+      {/* ── Barra de seleção múltipla ── */}
+      {modoSelecao && (
+        <div style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.15), rgba(6,182,212,0.1))", border: "1px solid rgba(168,85,247,0.3)", borderRadius: 12, padding: "10px 16px", marginBottom: 14, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+          <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: "0.82rem", color: "var(--purple2)", fontWeight: 700 }}>
+            {selecionados.size} selecionado{selecionados.size !== 1 ? "s" : ""}
+          </span>
+          <button
+            onClick={() => batchAvancar("confirmado")}
+            disabled={atualizando === "batch" || selecionados.size === 0}
+            style={{ padding: "6px 14px", background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.4)", borderRadius: 20, color: "var(--green)", fontFamily: "'Outfit', sans-serif", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", opacity: atualizando === "batch" ? 0.5 : 1 }}
+          >
+            ✓ Confirmar todos
+          </button>
+          <button
+            onClick={() => batchAvancar("preparo")}
+            disabled={atualizando === "batch" || selecionados.size === 0}
+            style={{ padding: "6px 14px", background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.4)", borderRadius: 20, color: "var(--purple2)", fontFamily: "'Outfit', sans-serif", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", opacity: atualizando === "batch" ? 0.5 : 1 }}
+          >
+            🫐 Preparo
+          </button>
+          <button
+            onClick={() => batchAvancar("pronto")}
+            disabled={atualizando === "batch" || selecionados.size === 0}
+            style={{ padding: "6px 14px", background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.4)", borderRadius: 20, color: "var(--green)", fontFamily: "'Outfit', sans-serif", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", opacity: atualizando === "batch" ? 0.5 : 1 }}
+          >
+            🎉 Pronto
+          </button>
+          <button
+            onClick={batchCancelar}
+            disabled={atualizando === "batch" || selecionados.size === 0}
+            style={{ padding: "6px 14px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 20, color: "var(--red)", fontFamily: "'Outfit', sans-serif", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", opacity: atualizando === "batch" ? 0.5 : 1 }}
+          >
+            ✕ Cancelar
+          </button>
         </div>
       )}
 
-      <div style={{ background: "rgba(37,211,102,0.08)", border: "1px solid rgba(37,211,102,0.2)", borderRadius: "var(--radius-sm)", padding: "10px 14px", marginBottom: 14, fontSize: "0.78rem", color: "#25d366" }}>
-        ✅ Notificações automáticas ativas — o cliente recebe WhatsApp ao mudar o status
+
+      {/* Toggle Lista / Kanban */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <button onClick={() => setViewMode(v => v === "kanban" ? "lista" : "kanban")} style={{
+          background: viewMode === "kanban" ? "rgba(168,85,247,0.15)" : "rgba(34,197,94,0.1)",
+          border: `1px solid ${viewMode === "kanban" ? "rgba(168,85,247,0.4)" : "rgba(34,197,94,0.3)"}`,
+          borderRadius: 20, padding: "6px 14px", cursor: "pointer",
+          color: viewMode === "kanban" ? "var(--purple2)" : "var(--green)",
+          fontFamily: "'Outfit', sans-serif", fontSize: "0.78rem", fontWeight: 600,
+        }}>
+          {viewMode === "kanban" ? "📋 Ver Lista" : "🎯 Ver Kanban"}
+        </button>
       </div>
 
       <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, marginBottom: 16 }}>
@@ -1019,6 +1799,7 @@ function TabPedidos({ onNovoPedido }) {
           { id: "pendente", label: "Pendentes",  count: contadores.pendente, color: "var(--gold)" },
           { id: "preparo",  label: "Em preparo", count: contadores.preparo,  color: "var(--purple2)" },
           { id: "entrega",  label: "Em entrega", count: contadores.entrega,  color: "#f97316" },
+          { id: "entregue", label: "Entregues",  count: contadores.entregue, color: "var(--green)" },
         ].map(f => (
           <button key={f.id} onClick={() => setFiltro(f.id)} style={{
             flexShrink: 0, padding: "8px 14px",
@@ -1037,22 +1818,258 @@ function TabPedidos({ onNovoPedido }) {
             )}
           </button>
         ))}
+        <div style={{ flexShrink: 0, width: 1, background: "var(--border)", margin: "6px 0" }} />
+        <button onClick={() => setFiltro("chatEntregador")} style={{
+          flexShrink: 0, padding: "8px 14px",
+          background: filtro === "chatEntregador" ? "rgba(6,182,212,0.15)" : "var(--bg2)",
+          border: `1px solid ${filtro === "chatEntregador" ? "rgba(6,182,212,0.4)" : "var(--border)"}`,
+          borderRadius: 20, cursor: "pointer",
+          fontFamily: "'Outfit', sans-serif", fontSize: "0.78rem", fontWeight: 600,
+          color: filtro === "chatEntregador" ? "#22d3ee" : "var(--text2)",
+          display: "flex", alignItems: "center", gap: 6,
+        }}>
+          🛵 Chat Entregador
+        </button>
+        <button onClick={() => setFiltro("chatCliente")} style={{
+          flexShrink: 0, padding: "8px 14px",
+          background: filtro === "chatCliente" ? "rgba(168,85,247,0.15)" : "var(--bg2)",
+          border: `1px solid ${filtro === "chatCliente" ? "rgba(168,85,247,0.4)" : "var(--border)"}`,
+          borderRadius: 20, cursor: "pointer",
+          fontFamily: "'Outfit', sans-serif", fontSize: "0.78rem", fontWeight: 600,
+          color: filtro === "chatCliente" ? "var(--purple2)" : "var(--text2)",
+          display: "flex", alignItems: "center", gap: 6,
+        }}>
+          💬 Chat Cliente
+        </button>
       </div>
 
-      {pedidosFiltrados.length === 0 && (
-        <div style={{ textAlign: "center", padding: "32px 0", color: "var(--text2)" }}>
-          <div style={{ fontSize: "2rem", marginBottom: 8 }}>📋</div>
-          <p className="text-sm">Nenhum pedido encontrado.</p>
-        </div>
+      {/* ── CHAT ENTREGADOR ── */}
+      {filtro === "chatEntregador" && (
+        <ChatEntregadorFullScreen />
       )}
 
-      {pedidosFiltrados.map(p => {
-        const st = STATUS_LIST.find(s => s.id === p.status) || STATUS_LIST[0];
-        const aberto = expandido === p.id;
-        return (
+      {/* ── CHAT CLIENTE ── */}
+      {filtro === "chatCliente" && (
+        <ChatPageFullScreen />
+      )}
+
+      {/* ── KANBAN VIEW (não mostra quando chat selecionado) ── */}
+      {viewMode === "kanban" && filtro !== "chatEntregador" && filtro !== "chatCliente" ? (
+        <div style={{ position: "relative" }}>
+          {/* Seta esquerda */}
+          <button onClick={() => { const el = document.getElementById("kanban-scroll"); if (el) el.scrollBy({ left: -300, behavior: "smooth" }); }} style={{
+            position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)",
+            zIndex: 10, width: 36, height: 52, borderRadius: "0 14px 14px 0",
+            background: "linear-gradient(135deg, #7c3aed, #6d28d9)",
+            border: "none", color: "#fff", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "1.8rem", fontWeight: 900, boxShadow: "0 4px 20px rgba(124,58,237,.4)",
+          }}>‹</button>
+          {/* Seta direita */}
+          <button onClick={() => { const el = document.getElementById("kanban-scroll"); if (el) el.scrollBy({ left: 300, behavior: "smooth" }); }} style={{
+            position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)",
+            zIndex: 10, width: 36, height: 52, borderRadius: "14px 0 0 14px",
+            background: "linear-gradient(135deg, #7c3aed, #6d28d9)",
+            border: "none", color: "#fff", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "1.8rem", fontWeight: 900, boxShadow: "0 4px 20px rgba(124,58,237,.4)",
+          }}>›</button>
+          <div id="kanban-scroll" style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8 }}>
+          {["pendente", "preparo", "pronto", "entrega", "entregue"].map(statusId => {
+            const statusInfo = STATUS_LIST.find(s => s.id === statusId) || STATUS_LIST[2];
+            const isEntregueView = filtro === "entregue" && statusId === "entregue";
+            const colPedidos = isEntregueView
+              ? pedidos.filter(p => {
+                  if (p.status !== "entregue") return false;
+                  if (!p.createdAt) return false;
+                  const d = p.createdAt?.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
+                  return d.toDateString() === new Date().toDateString();
+                })
+              : statusId === "entregue" ? [] : pedidos.filter(p => p.status === statusId);
+            const nextMap = { pendente: "preparo", preparo: "pronto", pronto: "entrega", entrega: "entregue" };
+            const prevMap = { preparo: "pendente", pronto: "preparo", entrega: "pronto" };
+            const btnConfig = {
+              pendente: { label: "✓ Confirmar", bg: "linear-gradient(135deg, #a855f7, #7c3aed)", icon: "→" },
+              preparo:  { label: "🎉 Pronto",   bg: "linear-gradient(135deg, #22c55e, #16a34a)", icon: "→" },
+              pronto:   { label: "🛵 Sair p/ entrega", bg: "linear-gradient(135deg, #f97316, #ea580c)", icon: "" },
+              entrega:  { label: "✓ Entregue", bg: "linear-gradient(135deg, #22c55e, #16a34a)", icon: "" },
+            };
+            const btn = btnConfig[statusId];
+            return (
+              <div key={statusId} style={{ minWidth: 285, flex: "0 0 285px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ background: statusInfo?.color + "22", color: statusInfo?.color, border: `1px solid ${statusInfo?.color}44`, borderRadius: 10, padding: "6px 10px", fontSize: "0.72rem", fontWeight: 700, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 5 }}>
+                  <span>{statusInfo?.icon} {statusInfo?.label}</span>
+                  <span style={{ background: statusInfo?.color + "33", borderRadius: 8, padding: "1px 6px", fontSize: "0.65rem" }}>{colPedidos.length}</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {colPedidos.map(p => {
+                    const alerta = getCardAlerta(p, statusId, tempoCards);
+                    return (
+                    <div key={p.id} style={{
+                      background: `${statusInfo?.color}18`,
+                      border: `2px solid ${alerta.cor}`,
+                      borderRadius: 12,
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      minWidth: 0,
+                      animation: alerta.anim,
+                      color: alerta.cor,
+                      position: "relative",
+                    }}>
+                      {/* Card interno */}
+                      <div style={{ padding: "10px" }}>
+                        {/* Checkbox de seleção */}
+                        {modoSelecao && (
+                          <div style={{ position: "absolute", top: 8, left: 8, zIndex: 5 }}>
+                            <div
+                              onClick={e => { e.stopPropagation(); togglePedido(p.id); }}
+                              style={{
+                                width: 22, height: 22, borderRadius: 6,
+                                background: selecionados.has(p.id) ? "var(--purple2)" : "rgba(255,255,255,0.1)",
+                                border: `2px solid ${selecionados.has(p.id) ? "var(--purple2)" : "rgba(255,255,255,0.3)"}`,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                cursor: "pointer", fontSize: "0.75rem", color: "#fff",
+                              }}
+                            >
+                              {selecionados.has(p.id) && "✓"}
+                            </div>
+                          </div>
+                        )}
+                        {/* Timer + Info */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
+                          <div style={{ background: "rgba(34,197,94,0.12)", color: "var(--green)", border: "1px solid rgba(34,197,94,0.3)", borderRadius: 8, padding: "2px 7px", fontSize: "0.65rem", fontWeight: 800 }}>
+                            {statusInfo?.icon} agora
+                          </div>
+                          {p.numeroPedido && <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,.35)", fontWeight: 700 }}>#{p.numeroPedido}</div>}
+                          {(p.canal === "chat" || p.canal === "chat_ia") && <div style={{ background: "rgba(6,182,212,.15)", color: "#22d3ee", borderRadius: 8, padding: "2px 6px", fontSize: "0.6rem", fontWeight: 700 }}>{p.canal === "chat_ia" ? "🤖" : "💬"}</div>}
+                          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
+                            <span style={{ fontSize: "0.6rem", color: "rgba(255,255,255,.4)" }}>{p.tipoEntrega === "entrega" ? "🛵" : "🏠"}</span>
+                            <button onClick={e => { e.stopPropagation(); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "0.8rem", padding: 0 }}>🖨️</button>
+                          </div>
+                        </div>
+                        {/* Cliente + Telefone */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                          <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>{p.nomeCliente || "Cliente"}</div>
+                          {p.telefone && <a href={`tel:${p.telefone}`} onClick={e => e.stopPropagation()} style={{ fontSize: "0.65rem", color: "#22d3ee", textDecoration: "none", fontWeight: 600 }}>📱 {p.telefone}</a>}
+                        </div>
+                        {/* Info do entregador (só quando saiu p/ entrega) */}
+                        {p.entregadorId && statusId === "entrega" && (
+                          <div style={{ background: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.25)", borderRadius: 8, padding: "6px 10px", marginBottom: 6, display: "flex", flexDirection: "column", gap: 5 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: "0.75rem" }}>🛵</span>
+                              <span style={{ fontFamily: "'Outfit', sans-serif", fontSize: "0.78rem", fontWeight: 700, color: "#f97316" }}>{p.entregadorNome || "Entregador"}</span>
+                            </div>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <a
+                                href={`/entregador/${p.entregadorId}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={e => e.stopPropagation()}
+                                style={{ flex: 1, padding: "4px 8px", background: "rgba(249,115,22,0.15)", border: "1px solid rgba(249,115,22,0.3)", borderRadius: 8, color: "#f97316", fontFamily: "'Outfit', sans-serif", fontSize: "0.7rem", fontWeight: 700, textDecoration: "none", textAlign: "center" }}
+                              >
+                                📍 Ver rastreio
+                              </a>
+                              <button
+                                onClick={e => { e.stopPropagation(); navigator.clipboard?.writeText(`${window.location.origin}/entregador/${p.entregadorId}`); alert("Link copiado!"); }}
+                                style={{ flex: 1, padding: "4px 8px", background: "rgba(6,182,212,0.15)", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 8, color: "#22d3ee", fontFamily: "'Outfit', sans-serif", fontSize: "0.7rem", fontWeight: 700, cursor: "pointer" }}
+                              >
+                                📋 Copiar link
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {/* Itens */}
+                        <div style={{ marginBottom: 6 }}>
+                          <div style={{ fontSize: "0.58rem", color: "rgba(255,255,255,.25)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 }}>Itens</div>
+                          {(p.items || []).map((item, i) => (
+                            <div key={i} style={{ fontSize: "0.72rem", color: "rgba(255,255,255,.75)", marginBottom: 1, display: "flex", justifyContent: "space-between", gap: 4 }}>
+                              <span><span style={{ fontWeight: 700, color: "#fff" }}>{item.qty}x</span> {item.nome}{item.obs && <span style={{ color: "#f59e0b", fontStyle: "italic" }}> · {item.obs}</span>}</span>
+                              <span style={{ color: "#f5c518", fontWeight: 600, flexShrink: 0 }}>R$ {((item.precoTotal || (item.preco * item.qty)) || 0).toFixed(2).replace(".", ",")}</span>
+                            </div>
+                          ))}
+                          {(p.items?.length || 0) > 3 && <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,.3)", marginTop: 2 }}>+ {p.items.length - 3} mais itens</div>}
+                        </div>
+                        {/* Endereço */}
+                        {p.tipoEntrega === "entrega" && p.endereco && (
+                          <div style={{ marginBottom: 6 }}>
+                            <div style={{ fontSize: "0.58rem", color: "rgba(255,255,255,.25)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>📍 Endereço</div>
+                            <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.endereco}</div>
+                          </div>
+                        )}
+                        {/* Observação */}
+                        {p.obs && (
+                          <div style={{ marginBottom: 6 }}>
+                            <div style={{ fontSize: "0.58rem", color: "rgba(245,158,11,.7)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 }}>📝 Obs</div>
+                            <div style={{ fontSize: "0.7rem", color: "#f59e0b", fontStyle: "italic" }}>{p.obs}</div>
+                          </div>
+                        )}
+                        {/* Total */}
+                        <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(255,255,255,.08)", paddingTop: 4, marginTop: 2 }}>
+                          <span style={{ fontWeight: 800, fontSize: "0.75rem", color: "#fff" }}>TOTAL</span>
+                          <span style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: "0.85rem", color: "#f5c518" }}>R$ {(p.total || 0).toFixed(2).replace(".", ",")}</span>
+                        </div>
+                      </div>
+                      {/* Botões Voltar + Avançar */}
+                      {statusId !== "entregue" ? (
+                      <div style={{ padding: "6px 10px 10px", display: "flex", gap: 8, borderTop: "1px solid rgba(255,255,255,.06)" }}>
+                        {statusId !== "pendente" && (
+                          <button onClick={() => atualizarStatus(p.id, prevMap[statusId])} style={{
+                            flexShrink: 0,
+                            background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)",
+                            border: "1px solid rgba(255,255,255,0.15)", borderRadius: 20, padding: "6px 12px",
+                            fontSize: "0.72rem", fontWeight: 700, cursor: "pointer",
+                          }}>
+                            ← Voltar
+                          </button>
+                        )}
+                        <button onClick={() => atualizarStatus(p.id, nextMap[statusId])} style={{
+                          flex: 1,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                          background: btn.bg, color: "#fff",
+                          border: "none", borderRadius: 20, padding: "7px 14px",
+                          fontSize: "0.78rem", fontWeight: 800, cursor: "pointer",
+                        }}>
+                          {btn.label} {btn.icon && <span style={{ fontSize: "1rem" }}>{btn.icon}</span>}
+                        </button>
+                      </div>
+                      ) : (
+                      <div style={{ padding: "6px 10px 10px", display: "flex", gap: 8, borderTop: "1px solid rgba(255,255,255,.06)" }}>
+                        <button onClick={() => atualizarStatus(p.id, "entrega")} style={{
+                          flex: 1,
+                          background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)",
+                          border: "1px solid rgba(255,255,255,0.15)", borderRadius: 20, padding: "6px 12px",
+                          fontSize: "0.72rem", fontWeight: 700, cursor: "pointer",
+                        }}>
+                          ← Voltar p/ Em Entrega
+                        </button>
+                      </div>
+                      )}
+                    </div>
+                    );
+                  })}
+                  {colPedidos.length === 0 && (
+                    <div style={{ textAlign: "center", padding: "16px 0", color: "var(--text3)", fontSize: "0.72rem" }}>vazio</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        </div>
+      ) : (
+        <>
+        {pedidosFiltrados.length === 0 && (
+          <div style={{ textAlign: "center", padding: "32px 0", color: "var(--text2)" }}>
+            <div style={{ fontSize: "2rem", marginBottom: 8 }}>📋</div>
+            <p className="text-sm">Nenhum pedido encontrado.</p>
+          </div>
+        )}
+
+        {pedidosFiltrados.map(p => {
+          const st = STATUS_LIST.find(s => s.id === p.status) || STATUS_LIST[0];
+          const aberto = expandido === p.id;
+          return (
           <div key={p.id} style={{
-            background: "linear-gradient(135deg, var(--bg3), var(--bg2))",
-            border: `1px solid ${p.status === "pendente" ? "rgba(245,197,24,0.3)" : aberto ? "var(--border2)" : "var(--border)"}`,
             borderRadius: "var(--radius)", marginBottom: 10, overflow: "hidden",
           }}>
             <div onClick={() => setExpandido(aberto ? null : p.id)} style={{ padding: "12px 14px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
@@ -1201,6 +2218,8 @@ function TabPedidos({ onNovoPedido }) {
           </div>
         );
       })}
+      </>
+      )}
 
       {/* Input oculto para seleção de vídeo de verificação */}
       <input
@@ -2470,6 +3489,12 @@ function TabConfig() {
       </div>
 
       <div className="form-group">
+        <label className="form-label">🎯 Meta diária de faturamento (R$)</label>
+        <input className="form-input" type="number" step="1" value={form.metaFaturamento || ""} onChange={set("metaFaturamento")} placeholder="Ex: 1500 (deixe vazio para default R$ 1.500)" />
+        <div style={{ fontSize: "0.68rem", color: "var(--text3)", marginTop: 4 }}>Define a meta que aparece na barra de progresso do dashboard</div>
+      </div>
+
+      <div className="form-group">
         <label className="form-label">🚫 Bairros sem entrega</label>
         <div style={{ fontSize: "0.68rem", color: "var(--text3)", marginBottom: 8 }}>
           O cliente verá um aviso para conferir a lista antes de pedir.
@@ -3496,11 +4521,71 @@ function TabRecuperador() {
 // TabEntregadores — adicionar ao Admin.js
 function TabEntregadores() {
   const toast = useToast();
+  const { tenantId } = useStore();
   const [entregadores, setEntregadores] = useState([]);
   const [pedidosEntrega, setPedidosEntrega] = useState([]);
   const [form, setForm] = useState({ nome: "", telefone: "" });
   const [salvando, setSalvando] = useState(false);
   const [atribuindo, setAtribuindo] = useState(null);
+  const [relPeriodo, setRelPeriodo] = useState("7d");
+  const [relPedidos, setRelPedidos] = useState([]);
+  const [relLoading, setRelLoading] = useState(true);
+
+  const getRelDates = p => {
+    const agora = new Date();
+    const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    if (p === "hoje") {
+      return { inicio: new Date(hoje), fim: new Date(hoje.getTime() + 86400000 - 1) };
+    } else if (p === "7d") {
+      const inicio = new Date(hoje); inicio.setDate(inicio.getDate() - 6);
+      return { inicio, fim: new Date(hoje.getTime() + 86400000 - 1) };
+    } else {
+      const inicio = new Date(hoje); inicio.setDate(inicio.getDate() - 29);
+      return { inicio, fim: new Date(hoje.getTime() + 86400000 - 1) };
+    }
+  };
+
+  useEffect(() => {
+    if (!tenantId) return;
+    setRelLoading(true);
+    const { inicio, fim } = getRelDates(relPeriodo);
+    const q = query(
+      collection(db, "pedidos"),
+      where("tenantId", "==", tenantId),
+      where("tipoEntrega", "==", "entrega"),
+      where("status", "in", ["entrega", "entregue"]),
+      where("createdAt", ">=", Timestamp.fromDate(inicio)),
+      where("createdAt", "<=", Timestamp.fromDate(fim)),
+      orderBy("createdAt", "desc"),
+      limit(500)
+    );
+    const unsub = onSnapshot(q, snap => {
+      setRelPedidos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setRelLoading(false);
+    });
+    return unsub;
+  }, [tenantId, relPeriodo]);
+
+  const fmt = v => v != null ? `R$ ${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—";
+
+  const statsTotais = {
+    entregas: relPedidos.length,
+    faturamento: relPedidos.reduce((s, p) => s + (p.total || 0), 0),
+    entregue: relPedidos.filter(p => p.status === "entregue").length,
+  };
+
+  // Ranking por entregador
+  const rankingEntregadores = (() => {
+    const map = {};
+    relPedidos.forEach(p => {
+      const id = p.entregadorId || "sem";
+      const nome = p.entregadorNome || "Sem atribuição";
+      if (!map[id]) map[id] = { id, nome, entregas: 0, faturamento: 0 };
+      map[id].entregas++;
+      map[id].faturamento += p.total || 0;
+    });
+    return Object.values(map).sort((a, b) => b.entregas - a.entregas);
+  })();
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "entregadores"), snap => {
@@ -3676,6 +4761,89 @@ function TabEntregadores() {
       <button className="btn btn-gold btn-full" onClick={salvarEntregador} disabled={salvando}>
         {salvando ? "Salvando..." : "➕ Cadastrar entregador"}
       </button>
+
+      {/* ===== RELATÓRIO DE ENTREGAS ===== */}
+      <div style={{ marginTop: 32, borderTop: "2px solid var(--border)", paddingTop: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "rgba(255,255,255,.6)", textTransform: "uppercase", letterSpacing: ".08em" }}>
+            📊 Relatório de Entregas
+          </div>
+          {/* Period selector */}
+          <div style={{ display: "flex", gap: 6 }}>
+            {["hoje", "7d", "30d"].map(p => (
+              <button key={p} onClick={() => setRelPeriodo(p)} style={{
+                padding: "5px 12px", borderRadius: 8, border: "none", fontWeight: 700,
+                fontSize: "0.7rem", cursor: "pointer",
+                background: relPeriodo === p ? "#f97316" : "rgba(255,255,255,.06)",
+                color: relPeriodo === p ? "#fff" : "rgba(255,255,255,.4)",
+                fontFamily: "'Outfit',sans-serif",
+              }}>
+                {p === "hoje" ? "HOJE" : p === "7d" ? "7 DIAS" : "30 DIAS"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {relLoading ? (
+          <div style={{ textAlign: "center", padding: 20, color: "var(--text3)", fontSize: "0.8rem" }}>Carregando...</div>
+        ) : (
+          <>
+            {/* Stats resumo */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
+              {[
+                { icon: "🛵", label: "Total Entregas", val: statsTotais.entregas, cor: "#f97316" },
+                { icon: "💰", label: "Faturamento", val: fmt(statsTotais.faturamento), cor: "#22c55e" },
+                { icon: "📋", label: "Ticket Médio", val: fmt(statsTotais.faturamento / (statsTotais.entregas || 1)), cor: "#60a5fa" },
+                { icon: "✅", label: "Entregues", val: statsTotais.entregues, cor: "#a78bfa" },
+              ].map(s => (
+                <div key={s.label} style={{
+                  background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)",
+                  borderRadius: 12, padding: "12px 10px", textAlign: "center"
+                }}>
+                  <div style={{ fontSize: "1.2rem", marginBottom: 4 }}>{s.icon}</div>
+                  <div style={{ fontWeight: 900, fontSize: "1rem", color: s.cor }}>{s.val}</div>
+                  <div style={{ fontSize: "0.6rem", color: "rgba(255,255,255,.35)", textTransform: "uppercase", letterSpacing: ".06em" }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Por entregador */}
+            <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "rgba(255,255,255,.5)", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>
+              Por Entregador
+            </div>
+            {rankingEntregadores.length === 0 && (
+              <div style={{ color: "rgba(255,255,255,.3)", fontSize: "0.8rem", padding: "12px 0" }}>Nenhuma entrega no período</div>
+            )}
+            {rankingEntregadores.map((e, i) => (
+              <div key={e.id} style={{
+                display: "flex", alignItems: "center", gap: 10, marginBottom: 10,
+                background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)",
+                borderRadius: 12, padding: "10px 14px",
+              }}>
+                <span style={{
+                  fontSize: "0.8rem", fontWeight: 900, width: 20,
+                  color: i === 0 ? "#f5c518" : "rgba(255,255,255,.3)"
+                }}>#{i + 1}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.82rem" }}>{e.nome}</div>
+                  <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,.08)", marginTop: 5 }}>
+                    <div style={{
+                      height: "100%", borderRadius: 2,
+                      background: i === 0 ? "#f97316" : "#7c3aed",
+                      width: `${(e.entregas / (rankingEntregadores[0]?.entregas || 1)) * 100}%`,
+                      transition: "width .3s"
+                    }} />
+                  </div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: "0.82rem", color: "#f97316" }}>{e.entregas}x</div>
+                  <div style={{ fontSize: "0.65rem", color: "rgba(255,255,255,.4)" }}>{fmt(e.faturamento)}</div>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -7108,6 +8276,526 @@ const PRESETS = [
     ]
   },
 ];
+
+// ===== EQUIPE — gerenciamento de funcionarios =====
+function TabEquipe() {
+  const { tenantId, userData } = useStore();
+  const { criarFuncionario } = useAuth();
+  const toast = useToast();
+  const [funcionarios, setFuncionarios] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Search
+  const [busca, setBusca] = useState("");
+
+  // Create modal
+  const [showCreate, setShowCreate] = useState(false);
+  const [nome, setNome] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [pin, setPin] = useState("");
+  const [mostrarPin, setMostrarPin] = useState(false);
+  const [papel, setPapel] = useState("atendente");
+  const [criando, setCriando] = useState(false);
+
+  // Edit modal
+  const [editUid, setEditUid] = useState(null);
+  const [editNome, setEditNome] = useState("");
+  const [editTelefone, setEditTelefone] = useState("");
+  const [editPapel, setEditPapel] = useState("");
+
+  // Reset PIN modal
+  const [resetUid, setResetUid] = useState(null);
+  const [resetPin, setResetPin] = useState("");
+  const [mostrarResetPin, setMostrarResetPin] = useState(false);
+  const [resetando, setResetando] = useState(false);
+
+  // Delete confirmation
+  const [delUid, setDelUid] = useState(null);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    const q = query(collection(db, "users"), where("tenantId", "==", tenantId), where("role", "==", "funcionario"));
+    const unsub = onSnapshot(q, snap => {
+      setFuncionarios(snap.docs.map(d => ({ uid: d.id, ...d.data() })));
+      setLoading(false);
+    });
+    return unsub;
+  }, [tenantId]);
+
+  const PAPIS_DISPONIVEIS = [
+    { value: "atendente", label: "Atendente" },
+    { value: "caixa", label: "Caixa" },
+    { value: "cozinha", label: "Cozinha" },
+    { value: "gerencia", label: "Gerência" },
+  ];
+
+  const gerarPin = () => {
+    const p = String(Math.floor(1000 + Math.random() * 9000));
+    setPin(p);
+  };
+
+  const formatarTelefone = (t) => {
+    const d = (t || "").replace(/\D/g, "");
+    if (d.length >= 11) return `(${d.slice(-11,-9)}) ${d.slice(-9,-4)}-${d.slice(-4)}`;
+    if (d.length >= 7) return `${d.slice(-7,-4)}-${d.slice(-4)}`;
+    return t;
+  };
+
+  const ultimoAcesso = (func) => {
+    if (!func.lastLogin) return "—";
+    const d = func.lastLogin.toDate ? func.lastLogin.toDate() : new Date(func.lastLogin);
+    const diff = Date.now() - d.getTime();
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return "agora";
+    if (min < 60) return `há ${min}min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `há ${h}h`;
+    return `há ${Math.floor(h / 24)}d`;
+  };
+
+  const funcionariosAtivos = funcionarios.filter(f => !f.bloqueado);
+  const funcionariosBloqueados = funcionarios.filter(f => f.bloqueado);
+  const listaFiltrada = funcionarios.filter(f => {
+    if (!busca) return true;
+    const b = busca.toLowerCase();
+    return (f.nome || "").toLowerCase().includes(b) || (f.telefone || "").includes(b);
+  });
+
+  const handleCriar = async (e) => {
+    e?.preventDefault();
+    if (!nome || !telefone || !pin) return;
+    if (!/^\d{4}$/.test(pin)) { toast("PIN precisa ter 4 números."); return; }
+    setCriando(true);
+    try {
+      if (!tenantId) { toast("Erro: loja não identificada."); setCriando(false); return; }
+      const result = await criarFuncionario(nome, telefone, telefone, tenantId, papel, userData?.uid || "", pin);
+      toast(result.jaExistia ? "✅ Atualizado!" : "✅ Funcionário criado!");
+      const clean = telefone.replace(/\D/g, "");
+      const msg = encodeURIComponent(`Seu acesso:\nWhatsApp: ${telefone}\nPIN: ${pin}\n\nAcesse: nexfoody.com/lojista/funcionario/${tenantId}`);
+      setTimeout(() => window.open(`https://wa.me/55${clean}?text=${msg}`, "_blank"), 500);
+      setNome(""); setTelefone(""); setPin(""); setShowCreate(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("Erro criar func:", msg);
+      toast("⚠️ " + msg);
+    } finally {
+      setCriando(false);
+    }
+  };
+
+  const handleResetPin = async () => {
+    if (!resetUid || !resetPin || !/^\d{4}$/.test(resetPin)) return;
+    setResetando(true);
+    try {
+      const func = funcionarios.find(f => f.uid === resetUid);
+      await updateDoc(doc(db, "users", resetUid), { pinHash: resetPin });
+      if (func?.telefone) {
+        const clean = func.telefone.replace(/\D/g, "");
+        const msg = encodeURIComponent(`Seu PIN foi alterado!\nNovo PIN: ${resetPin}`);
+        setTimeout(() => window.open(`https://wa.me/55${clean}?text=${msg}`, "_blank"), 300);
+      }
+      toast("✅ PIN alterado!");
+      setResetUid(null); setResetPin("");
+    } catch {
+      toast("Erro ao resetar PIN.");
+    } finally {
+      setResetando(false);
+    }
+  };
+
+  const handleBloquear = async (uid, bloqueado) => {
+    try {
+      await updateDoc(doc(db, "users", uid), { bloqueado });
+      toast(bloqueado ? "🔒 Funcionário bloqueado" : "🔓 Funcionário desbloqueado");
+    } catch {
+      toast("Erro ao atualizar status.");
+    }
+  };
+
+  const handleExcluir = async (uid) => {
+    try {
+      await deleteDoc(doc(db, "users", uid));
+      toast("🗑️ Removido!");
+      setDelUid(null);
+    } catch {
+      toast("Erro ao remover.");
+    }
+  };
+
+  const handleEnviarAcesso = (func) => {
+    if (!func?.telefone) return;
+    const clean = func.telefone.replace(/\D/g, "");
+    const msg = encodeURIComponent(`Olá ${func.nome}!\n\nSeu acesso:\nWhatsApp: ${func.telefone}\nPIN: ${func.pinHash || "XXXX"}\n\nAcesse: nexfoody.com/lojista/funcionario/${tenantId}`);
+    window.open(`https://wa.me/55${clean}?text=${msg}`, "_blank");
+  };
+
+  return (
+    <div style={{ padding: "0 0 40px 0" }}>
+      {/* Header */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          <span style={{ fontSize: "1.2rem" }}>👤</span>
+          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: "1.3rem", fontWeight: 900, color: "var(--purple2)", margin: 0 }}>
+            FUNCIONÁRIOS
+          </h2>
+        </div>
+        <p style={{ fontSize: "0.8rem", color: "var(--text3)", margin: 0 }}>
+          Gerencie acessos à operação
+        </p>
+      </div>
+
+      {/* Search + New button bar */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center" }}>
+        <div style={{ flex: 1, position: "relative" }}>
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: "0.9rem" }}>🔍</span>
+          <input
+            className="input"
+            placeholder="Buscar por nome ou WhatsApp..."
+            value={busca}
+            onChange={e => setBusca(e.target.value)}
+            style={{ paddingLeft: 36, width: "100%", boxSizing: "border-box" }}
+          />
+        </div>
+        <button
+          onClick={() => setShowCreate(true)}
+          style={{
+            background: "linear-gradient(135deg, #14b8a6, #0d9488)",
+            border: "none", borderRadius: 12, padding: "10px 18px",
+            color: "#fff", fontFamily: "'Outfit', sans-serif",
+            fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
+          }}>
+          + Novo Funcionário
+        </button>
+      </div>
+
+      {/* Stats row */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+        <div style={{ flex: 1, background: "rgba(20,184,166,0.1)", border: "1px solid rgba(20,184,166,0.25)", borderRadius: 12, padding: "10px 14px", textAlign: "center" }}>
+          <div style={{ fontSize: "1.2rem", fontWeight: 900, color: "#14b8a6" }}>{funcionariosAtivos.length}</div>
+          <div style={{ fontSize: "0.68rem", color: "var(--text3)" }}>Ativos</div>
+        </div>
+        <div style={{ flex: 1, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 12, padding: "10px 14px", textAlign: "center" }}>
+          <div style={{ fontSize: "1.2rem", fontWeight: 900, color: "var(--red)" }}>{funcionariosBloqueados.length}</div>
+          <div style={{ fontSize: "0.68rem", color: "var(--text3)" }}>Bloqueados</div>
+        </div>
+        <div style={{ flex: 1, background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 14px", textAlign: "center" }}>
+          <div style={{ fontSize: "1.2rem", fontWeight: 900, color: "var(--text)" }}>{funcionarios.length}</div>
+          <div style={{ fontSize: "0.68rem", color: "var(--text3)" }}>Total</div>
+        </div>
+      </div>
+
+      {/* Table header */}
+      {listaFiltrada.length > 0 && (
+        <div style={{
+          display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 0.8fr 1fr 100px",
+          gap: 8, padding: "8px 14px",
+          fontSize: "0.68rem", fontWeight: 700, color: "var(--text3)",
+          textTransform: "uppercase", letterSpacing: "0.05em",
+        }}>
+          <div>Nome</div>
+          <div>WhatsApp</div>
+          <div>Função</div>
+          <div style={{ textAlign: "center" }}>Status</div>
+          <div>Último acesso</div>
+          <div style={{ textAlign: "center" }}>Ações</div>
+        </div>
+      )}
+
+      {/* Table rows */}
+      {loading ? (
+        <div style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}>Carregando...</div>
+      ) : listaFiltrada.length === 0 ? (
+        <div style={{
+          textAlign: "center", padding: "40px 0", color: "var(--text3)",
+          background: "var(--bg2)", borderRadius: 14, border: "1px solid var(--border)",
+        }}>
+          <div style={{ fontSize: "2rem", marginBottom: 8 }}>👥</div>
+          <p style={{ fontSize: "0.9rem" }}>{busca ? "Nenhum resultado encontrado." : "Nenhum funcionário ainda."}</p>
+          {!busca && <p style={{ fontSize: "0.78rem", marginTop: 4 }}>Clique em "+ Novo Funcionário" para criar o primeiro.</p>}
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {listaFiltrada.map(func => (
+            <div key={func.uid} style={{
+              background: "var(--bg2)", border: `1px solid ${func.bloqueado ? "rgba(239,68,68,0.2)" : "var(--border)"}`,
+              borderRadius: 12, padding: "12px 14px",
+              display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 0.8fr 1fr 100px",
+              gap: 8, alignItems: "center",
+              opacity: func.bloqueado ? 0.65 : 1,
+            }}>
+              {/* Nome */}
+              <div style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {func.nome}
+              </div>
+              {/* WhatsApp */}
+              <div style={{ fontSize: "0.78rem", color: "var(--text3)" }}>
+                {formatarTelefone(func.telefone)}
+              </div>
+              {/* Função */}
+              <div>
+                <span style={{
+                  background: "rgba(20,184,166,0.1)", border: "1px solid rgba(20,184,166,0.25)",
+                  borderRadius: 20, padding: "2px 8px",
+                  fontSize: "0.65rem", fontWeight: 700, color: "#14b8a6",
+                }}>
+                  {PAPIS_DISPONIVEIS.find(p => p.value === func.papel)?.label || func.papel}
+                </span>
+              </div>
+              {/* Status */}
+              <div style={{ textAlign: "center" }}>
+                <span style={{
+                  background: func.bloqueado ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)",
+                  border: `1px solid ${func.bloqueado ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"}`,
+                  borderRadius: 20, padding: "2px 8px",
+                  fontSize: "0.65rem", fontWeight: 700,
+                  color: func.bloqueado ? "var(--red)" : "#22c55e",
+                }}>
+                  {func.bloqueado ? "🔴 Bloq" : "🟢 Ativo"}
+                </span>
+              </div>
+              {/* Último acesso */}
+              <div style={{ fontSize: "0.72rem", color: "var(--text3)" }}>
+                {ultimoAcesso(func)}
+              </div>
+              {/* Ações */}
+              <div style={{ display: "flex", gap: 4, justifyContent: "center", flexWrap: "nowrap" }}>
+                <button onClick={() => { setEditUid(func.uid); setEditNome(func.nome || ""); setEditTelefone(func.telefone || ""); setEditPapel(func.papel || "atendente"); }}
+                  title="Editar" style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 7, padding: "4px 6px", color: "#6366f1", fontSize: "0.75rem", cursor: "pointer" }}>✏️</button>
+                <button onClick={() => { setResetUid(func.uid); setResetPin(""); }}
+                  title="Resetar PIN" style={{ background: "rgba(245,197,24,0.1)", border: "1px solid rgba(245,197,24,0.25)", borderRadius: 7, padding: "4px 6px", color: "var(--gold)", fontSize: "0.75rem", cursor: "pointer" }}>🔑</button>
+                <button onClick={() => handleBloquear(func.uid, !func.bloqueado)}
+                  title={func.bloqueado ? "Desbloquear" : "Bloquear"}
+                  style={{ background: func.bloqueado ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", border: `1px solid ${func.bloqueado ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`, borderRadius: 7, padding: "4px 6px", color: func.bloqueado ? "#22c55e" : "var(--red)", fontSize: "0.75rem", cursor: "pointer" }}>
+                  {func.bloqueado ? "🔓" : "🔒"}
+                </button>
+                <button onClick={() => handleEnviarAcesso(func)}
+                  title="Enviar acesso via WhatsApp"
+                  style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 7, padding: "4px 6px", color: "#22c55e", fontSize: "0.75rem", cursor: "pointer" }}>📲</button>
+                <button onClick={() => setDelUid(func.uid)}
+                  title="Remover"
+                  style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 7, padding: "4px 6px", color: "var(--red)", fontSize: "0.75rem", cursor: "pointer" }}>🗑️</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ─── MODAL: Novo funcionário ─── */}
+      {showCreate && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 999,
+          background: "rgba(0,0,0,0.7)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }} onClick={e => { if (e.target === e.currentTarget) setShowCreate(false); }}>
+          <div style={{
+            background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 18,
+            padding: "24px", width: 400, maxHeight: "90vh", overflowY: "auto",
+          }}>
+            <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: "1.1rem", fontWeight: 900, color: "var(--purple2)", marginBottom: 20 }}>
+              ➕ Novo Funcionário
+            </h3>
+            <form onSubmit={handleCriar} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={{ fontSize: "0.72rem", color: "var(--text3)", display: "block", marginBottom: 4 }}>👤 Nome completo</label>
+                <input className="input" placeholder="João da Silva" value={nome} onChange={e => setNome(e.target.value)} required />
+              </div>
+              <div>
+                <label style={{ fontSize: "0.72rem", color: "var(--text3)", display: "block", marginBottom: 4 }}>📱 WhatsApp</label>
+                <input className="input" type="tel" placeholder="(11) 99999-9999" value={telefone} onChange={e => setTelefone(e.target.value)} required />
+              </div>
+              <div>
+                <label style={{ fontSize: "0.72rem", color: "var(--text3)", display: "block", marginBottom: 4 }}>🔢 PIN (4 dígitos)</label>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <div style={{ flex: 1, position: "relative" }}>
+                    <input
+                      className="input" type={mostrarPin ? "text" : "password"} inputMode="numeric" pattern="[0-9]*"
+                      placeholder="••••" maxLength={4} value={pin}
+                      onChange={e => setPin(e.target.value.replace(/\D/g, ""))}
+                      required style={{ fontSize: "1.4rem", letterSpacing: "0.4em", textAlign: "center" }}
+                    />
+                    <button type="button" onClick={() => setMostrarPin(v => !v)}
+                      style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: "0.85rem" }}>
+                      {mostrarPin ? "👁️" : "👁️‍🗨️"}
+                    </button>
+                  </div>
+                  <button type="button" onClick={gerarPin}
+                    style={{ padding: "8px 12px", background: "rgba(245,197,24,0.1)", border: "1px solid rgba(245,197,24,0.3)", borderRadius: 10, color: "var(--gold)", fontFamily: "'Outfit', sans-serif", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+                    Gerar PIN
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: "0.72rem", color: "var(--text3)", display: "block", marginBottom: 4 }}>🧩 Função</label>
+                <select className="input" value={papel} onChange={e => setPapel(e.target.value)} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {PAPIS_DISPONIVEIS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+                <p style={{ fontSize: "0.72rem", color: "var(--text3)", marginBottom: 10 }}>
+                  📲 Os dados de acesso serão enviados automaticamente via WhatsApp do funcionário.
+                </p>
+              </div>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button type="button" onClick={() => setShowCreate(false)}
+                  style={{ flex: 1, padding: "10px 0", border: "1px solid var(--border)", borderRadius: 12, background: "var(--bg2)", color: "var(--text2)", fontFamily: "'Outfit', sans-serif", fontSize: "0.85rem", cursor: "pointer" }}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={criando}
+                  style={{ flex: 1, padding: "10px 0", border: "none", borderRadius: 12, background: "linear-gradient(135deg, #14b8a6, #0d9488)", color: "#fff", fontFamily: "'Outfit', sans-serif", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", opacity: criando ? 0.5 : 1 }}>
+                  {criando ? "Criando..." : "💾 Salvar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: Editar ─── */}
+      {editUid && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 999,
+          background: "rgba(0,0,0,0.7)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }} onClick={e => { if (e.target === e.currentTarget) setEditUid(null); }}>
+          <div style={{
+            background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 18,
+            padding: "24px", width: 360,
+          }}>
+            <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: "1rem", fontWeight: 900, color: "var(--purple2)", marginBottom: 16 }}>
+              ✏️ Editar {editNome}
+            </h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: "0.68rem", color: "var(--text3)", display: "block", marginBottom: 4 }}>Nome</label>
+                <input className="input" value={editNome} onChange={e => setEditNome(e.target.value)} />
+              </div>
+              <div>
+                <label style={{ fontSize: "0.68rem", color: "var(--text3)", display: "block", marginBottom: 4 }}>WhatsApp</label>
+                <input className="input" type="tel" value={editTelefone} onChange={e => setEditTelefone(e.target.value)} />
+              </div>
+              <div>
+                <label style={{ fontSize: "0.68rem", color: "var(--text3)", display: "block", marginBottom: 4 }}>Função</label>
+                <select className="input" value={editPapel} onChange={e => setEditPapel(e.target.value)} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {PAPIS_DISPONIVEIS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+              <button onClick={() => setEditUid(null)}
+                style={{ flex: 1, padding: "9px 0", border: "1px solid var(--border)", borderRadius: 10, background: "var(--bg2)", color: "var(--text2)", fontFamily: "'Outfit', sans-serif", fontSize: "0.82rem", cursor: "pointer" }}>
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  await updateDoc(doc(db, "users", editUid), { nome: editNome, telefone: editTelefone, papel: editPapel });
+                  toast("✅ Atualizado!");
+                  setEditUid(null);
+                }}
+                style={{ flex: 1, padding: "9px 0", border: "none", borderRadius: 10, background: "linear-gradient(135deg, #7c3aed, #6d28d9)", color: "#fff", fontFamily: "'Outfit', sans-serif", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer" }}>
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: Resetar PIN ─── */}
+      {resetUid && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 999,
+          background: "rgba(0,0,0,0.7)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }} onClick={e => { if (e.target === e.currentTarget) { setResetUid(null); setResetPin(""); } }}>
+          <div style={{
+            background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 18,
+            padding: "24px", width: 340,
+          }}>
+            <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: "1rem", fontWeight: 900, color: "var(--purple2)", marginBottom: 16 }}>
+              🔑 Resetar PIN
+            </h3>
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: "0.72rem", color: "var(--text3)", display: "block", marginBottom: 4 }}>Novo PIN (4 dígitos)</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div style={{ flex: 1, position: "relative" }}>
+                  <input className="input" type={mostrarResetPin ? "text" : "password"} inputMode="numeric" pattern="[0-9]*"
+                    placeholder="••••" maxLength={4} value={resetPin}
+                    onChange={e => setResetPin(e.target.value.replace(/\D/g, ""))}
+                    style={{ fontSize: "1.4rem", letterSpacing: "0.4em", textAlign: "center" }} />
+                  <button type="button" onClick={() => setMostrarResetPin(v => !v)}
+                    style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: "0.85rem" }}>
+                    {mostrarResetPin ? "👁️" : "👁️‍🗨️"}
+                  </button>
+                </div>
+                <button type="button" onClick={() => setResetPin(String(Math.floor(1000 + Math.random() * 9000)))}
+                  style={{ padding: "8px 12px", background: "rgba(245,197,24,0.1)", border: "1px solid rgba(245,197,24,0.3)", borderRadius: 10, color: "var(--gold)", fontFamily: "'Outfit', sans-serif", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>
+                  Gerar
+                </button>
+              </div>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <button
+                onClick={() => {
+                  if (!resetPin || !/^\d{4}$/.test(resetPin)) { toast("PIN precisa de 4 números."); return; }
+                  const func = funcionarios.find(f => f.uid === resetUid);
+                  if (func?.telefone) {
+                    const clean = func.telefone.replace(/\D/g, "");
+                    const msg = encodeURIComponent(`Seu PIN foi alterado!\nNovo PIN: ${resetPin}`);
+                    window.open(`https://wa.me/55${clean}?text=${msg}`, "_blank");
+                  }
+                }}
+                style={{ width: "100%", padding: "8px 0", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 10, color: "#22c55e", fontFamily: "'Outfit', sans-serif", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer" }}>
+                📲 Enviar via WhatsApp
+              </button>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => { setResetUid(null); setResetPin(""); }}
+                style={{ flex: 1, padding: "9px 0", border: "1px solid var(--border)", borderRadius: 10, background: "var(--bg2)", color: "var(--text2)", fontFamily: "'Outfit', sans-serif", fontSize: "0.82rem", cursor: "pointer" }}>
+                Cancelar
+              </button>
+              <button onClick={handleResetPin} disabled={resetando}
+                style={{ flex: 1, padding: "9px 0", border: "none", borderRadius: 10, background: "linear-gradient(135deg, #7c3aed, #6d28d9)", color: "#fff", fontFamily: "'Outfit', sans-serif", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer", opacity: resetando ? 0.5 : 1 }}>
+                {resetando ? "Salvando..." : "✅ Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: Confirmar exclusão ─── */}
+      {delUid && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 999,
+          background: "rgba(0,0,0,0.7)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }} onClick={e => { if (e.target === e.currentTarget) setDelUid(null); }}>
+          <div style={{
+            background: "var(--bg)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 18,
+            padding: "24px", width: 320,
+          }}>
+            <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: "1rem", fontWeight: 900, color: "var(--red)", marginBottom: 10 }}>
+              🗑️ Remover funcionário
+            </h3>
+            <p style={{ fontSize: "0.85rem", color: "var(--text2)", marginBottom: 20 }}>
+              Tem certeza? Esta ação não pode ser desfeita.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setDelUid(null)}
+                style={{ flex: 1, padding: "9px 0", border: "1px solid var(--border)", borderRadius: 10, background: "var(--bg2)", color: "var(--text2)", fontFamily: "'Outfit', sans-serif", fontSize: "0.82rem", cursor: "pointer" }}>
+                Cancelar
+              </button>
+              <button onClick={() => handleExcluir(delUid)}
+                style={{ flex: 1, padding: "9px 0", border: "none", borderRadius: 10, background: "var(--red)", color: "#fff", fontFamily: "'Outfit', sans-serif", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer" }}>
+                🗑️ Remover
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function TabAparencia() {
   const { config, salvarConfig, tenantId } = useStore();

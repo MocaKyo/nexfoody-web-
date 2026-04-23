@@ -102,6 +102,7 @@ export default function RegisterCatalogo() {
         horarioAbertura: "09:00", horarioFechamento: "22:00",
         pontosPorReal: 0, endereco: cidade || "",
         chamadaCupom: [], rankingPtsComentario: 0, rankingPtsPedido: 0, rankingPtsPorReal: 0,
+        instagram: "", paginaFeed: slug,
       }, { merge: true });
 
       setEtapa(3);
@@ -401,7 +402,7 @@ export default function RegisterCatalogo() {
 
               {/* Adicionar produtos */}
               <motion.button whileTap={{ scale: 0.98 }}
-                onClick={() => navigate("/lojista/dashboard")}
+                onClick={() => navigate("/lojista/hub")}
                 style={btnGold}>
                 Adicionar meus produtos →
               </motion.button>

@@ -220,7 +220,7 @@ export default function LojistaDashboard() {
   const slug = userData.lojistaOf;
 
   return (
-    <div style={{ background: "#080412", minHeight: "100vh", fontFamily: "'Outfit', sans-serif", paddingBottom: 90 }}>
+    <div style={{ background: "#080412", minHeight: "100vh", fontFamily: "'Outfit', sans-serif", paddingBottom: 90, width: "100%" }}>
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.85)}}

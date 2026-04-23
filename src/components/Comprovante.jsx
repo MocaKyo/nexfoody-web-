@@ -113,7 +113,7 @@ ${pedido.motivoCancelamento ? `<div style="color:red;"><strong>CANCELADO:</stron
         <button onClick={onClose} style={{
           background: "none", border: "none", color: "var(--text)",
           cursor: "pointer", fontSize: "1.2rem", padding: 4,
-        }}>←</button>
+        }}>✕</button>
         <div style={{ flex: 1, fontWeight: 700, fontSize: "0.95rem" }}>
           🧾 Comprovante
         </div>

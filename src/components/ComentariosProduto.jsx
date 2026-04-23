@@ -9,7 +9,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useStore } from "../contexts/StoreContext";
 import { getBadges } from "./RankingFas";
 
-export default function ComentariosProduto({ produto, onClose }) {
+export default function ComentariosProduto({ produto, onClose, children }) {
   const { user } = useAuth();
   const { config, isAdmin, addToCart } = useStore();
   const navigate = useNavigate();
@@ -602,6 +602,9 @@ export default function ComentariosProduto({ produto, onClose }) {
     100% { box-shadow: 1px 0 4px 0px rgba(245,197,24,0.5), inset 0 0 0 1px rgba(245,197,24,0.3); }
   }
 `}</style>
+
+        {/* Children (carrossel de emojis) */}
+        {children && children}
 
         {/* Mini card do produto */}
         {produto && (

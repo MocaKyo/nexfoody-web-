@@ -5,6 +5,7 @@ import { collection, query, where, orderBy, limit, onSnapshot } from "firebase/f
 import { db } from "../lib/firebase";
 import { useAuth } from "../contexts/AuthContext";
 import { useStore } from "../contexts/StoreContext";
+import { useTheme } from "../contexts/ThemeContext";
 import { ToastProvider } from "./Toast";
 import { useFCM } from "../hooks/useFCM";
 import OfflineBanner from "./OfflineBanner";
@@ -50,6 +51,7 @@ export default function Layout() {
   const location = useLocation();
   const { user, userData, isAdmin, isLojista } = useAuth();
   const { config, cartCount } = useStore();
+  const { theme, setTheme } = useTheme();
   const path = location.pathname;
   const [installPrompt, setInstallPrompt] = useState(null);
   const [pedidoAtualizado, setPedidoAtualizado] = useState(false);
@@ -153,9 +155,11 @@ export default function Layout() {
     ...((isAdmin || isLojista) ? [{ path: `${baseLoja}/admin`, label: "Admin", icon: <IconAdmin /> }] : []),
   ];
 
+  const isAdminRoute = location.pathname.includes("/admin");
+
   return (
     <ToastProvider>
-      <div className="app-shell">
+      <div className={`app-shell${isAdminRoute ? " admin-mode" : ""}`}>
         <OfflineBanner />
         {/* Banner de instalação PWA */}
         {showInstallBanner && (
@@ -196,14 +200,28 @@ export default function Layout() {
             <span>{config?.nomeLoja || "Loja"}</span>
           </div>
           {user && (
-            <div style={{ fontSize: "0.78rem", color: "var(--text2)", display: "flex", alignItems: "center", gap: 6 }}>
-              <span>Olá, {userData?.nome?.split(" ")[0] || "Cliente"} 👋</span>
-              {rankingPos && getBadges(rankingPos, 0).slice(0, 1).map(b => (
-                <span key={b.id} title={`${b.label} — ${rankingPos}º no ranking`} style={{ fontSize: "0.9rem" }}>{b.emoji}</span>
-              ))}
-              {rankingPos > 10 && (
-                <span style={{ fontSize: "0.68rem", color: "var(--text3)" }}>#{rankingPos}</span>
-              )}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: "0.78rem", color: "var(--text2)", display: "flex", alignItems: "center", gap: 6 }}>
+                <span>Olá, {userData?.nome?.split(" ")[0] || "Cliente"} 👋</span>
+                {rankingPos && getBadges(rankingPos, 0).slice(0, 1).map(b => (
+                  <span key={b.id} title={`${b.label} — ${rankingPos}º no ranking`} style={{ fontSize: "0.9rem" }}>{b.emoji}</span>
+                ))}
+                {rankingPos > 10 && (
+                  <span style={{ fontSize: "0.68rem", color: "var(--text3)" }}>#{rankingPos}</span>
+                )}
+              </span>
+              <button
+                onClick={() => setTheme(theme === "dark" ? "light" : theme === "light" ? "system" : "dark")}
+                style={{
+                  background: "var(--bg2)", border: "1px solid var(--border)",
+                  borderRadius: 20, padding: "4px 10px", cursor: "pointer",
+                  fontSize: "0.72rem", fontWeight: 700, color: "var(--text2)",
+                  display: "flex", alignItems: "center", gap: 4,
+                }}
+                title="Alternar tema"
+              >
+                {theme === "dark" ? "🌙" : theme === "light" ? "☀️" : "⚙️"}
+              </button>
             </div>
           )}
         </header>

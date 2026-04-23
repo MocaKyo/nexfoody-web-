@@ -7,6 +7,7 @@ import {
   query, orderBy, arrayUnion,
 } from "firebase/firestore";
 import { useAuth } from "./AuthContext";
+import { addFanPoints } from "../lib/pontos";
 
 const StoreContext = createContext();
 export const useStore = () => useContext(StoreContext);

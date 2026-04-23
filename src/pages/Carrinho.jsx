@@ -283,11 +283,16 @@ export default function Carrinho() {
   const toast = useToast();
   const { user, userData } = useAuth();
   const {
-    config, cartItems, cartTotal, addToCart, clearCart,
+    config, produtos, cartItems, cartTotal, addToCart, clearCart,
+    removeFromCart,
     finalizarPedido, removeFromExtras, updateExtraQty, pontos, tenantId,
   } = useStore();
 
-  const items = cartItems();
+  const items = Object.entries(cartItems).reduce((acc, [produtoId, qty]) => {
+    const produto = produtos.find(p => p.id === produtoId);
+    if (produto) acc.push({ ...produto, qty, itemId: produtoId });
+    return acc;
+  }, []);
   const total = cartTotal();
 
   // Form dados
@@ -498,12 +503,34 @@ export default function Carrinho() {
       if (pagamento === "pix") {
         setPixData({ valor: totalFinal, msgWhatsApp: montarMsgWhatsApp(numPedido) });
       } else if (pagamento === "cartao_online") {
-        const resp = await fetch("https://us-east1-acaipedidos-f53cc.cloudfunctions.net/criarPreferenciaMercadoPago", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items, pedidoId: resultado?.pedidoId, nomeCliente: nome, email: user?.email || "" }),
-        });
-        const data = await resp.json();
-        if (data.sandboxUrl || data.checkoutUrl) window.location.href = data.sandboxUrl || data.checkoutUrl;
+        // Stripe Checkout
+        try {
+          const response = await fetch("https://us-east1-acaipedidos-f53cc.cloudfunctions.net/criarSessaoStripe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              items: items.map(i => ({
+                nome: i.nome,
+                preco: Math.round((i.precoTotal || i.preco) * 100),
+                qty: i.qty,
+              })),
+              numPedido,
+              nomeCliente: nome,
+              email: user?.email || "",
+              telefone,
+              tenantId: tenantId || config.slug || "",
+            }),
+          });
+          const data = await response.json();
+          if (data.url) {
+            window.location.href = data.url;
+          } else if (data.error) {
+            toast("Erro com Stripe: " + data.error, "error");
+          }
+        } catch (e) {
+          toast("Erro ao iniciar pagamento Stripe.", "error");
+          console.error(e);
+        }
       } else {
         const msg = montarMsgWhatsApp(numPedido);
         const tel = (config.whatsapp || "5599984623356").replace(/\D/g, "");
@@ -739,9 +766,9 @@ try {
               item={item}
               isFav={isFav}
               onToggleFav={() => toggleFavorito(item)}
-              onRemove={() => item.itemId ? removeFromExtras(item.itemId) : addToCart(item.id, -item.qty)}
-              onQtyChange={delta => item.itemId ? updateExtraQty(item.itemId, delta) : addToCart(item.id, delta)}
-              onDuplicar={() => addToCart(item.produtoId, 1, item.complementos, item.precoTotal)}
+              onRemove={() => removeFromCart(item.id)}
+              onQtyChange={delta => addToCart(item.id, delta)}
+              onDuplicar={() => addToCart(item.id, 1)}
               onEditar={() => {
                 const produto = item.itemId
                   ? { id: item.produtoId, nome: item.nome, foto: item.foto, emoji: item.emoji, preco: item.preco, maxComplementos: item.maxComplementos }
@@ -981,7 +1008,7 @@ try {
           display: "flex", alignItems: "center", justifyContent: "space-between",
           boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
         }}>
-          <span>{loading ? "⏳ Processando..." : pagamento === "pix" ? "📱 Confirmar e gerar PIX" : pagamento === "cartao_online" ? "💳 Pagar com cartão" : "💬 Enviar pelo WhatsApp"}</span>
+          <span>{loading ? "⏳ Processando..." : pagamento === "pix" ? "📱 Confirmar e gerar PIX" : pagamento === "cartao_online" ? "💳 Pagar com Cartão (Stripe)" : "💬 Enviar pelo WhatsApp"}</span>
           <span style={{ fontFamily: "'Fraunces', serif", fontSize: "1.1rem" }}>R$ {totalFinal.toFixed(2).replace(".", ",")}</span>
         </button>
         {user && pagamento !== "pix" && pagamento !== "cartao_online" && (
@@ -1068,12 +1095,13 @@ try {
           produto={editandoItem.produto}
           onClose={() => setEditandoItem(null)}
           complementosIniciais={editandoItem.complementos}
-          onAdd={(produto, complementos, precoTotal) => {
+          isAberto={config.cardapioAtivo}
+          onAddWithComplementos={(produto, complementos) => {
             if (editandoItem.itemId) removeFromExtras(editandoItem.itemId);
-            addToCart(produto.id, 1, complementos, precoTotal);
+            addToCart(produto.id, 1);
+            updateCartComplementos(produto.id, complementos);
             setEditandoItem(null);
           }}
-          isAberto={config.cardapioAtivo}
         />
       )}
 
@@ -1094,7 +1122,7 @@ try {
       {pedidoFinalizado && (
         <Comprovante
           pedido={pedidoFinalizado}
-          onClose={() => setPedidoFinalizado(null)}
+          onClose={() => { setPedidoFinalizado(null); }}
         />
       )}
 

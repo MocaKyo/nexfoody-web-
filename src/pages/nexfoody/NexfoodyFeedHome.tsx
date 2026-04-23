@@ -5,12 +5,16 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   collection, query, orderBy, limit, onSnapshot,
-  updateDoc, doc, arrayUnion, arrayRemove, where, getDocs
+  updateDoc, doc, arrayUnion, arrayRemove, where, getDocs, getDoc,
+  deleteField, increment, setDoc, deleteDoc, serverTimestamp
 } from "firebase/firestore";
-import { db } from "../../lib/firebase";
 import { useAuth } from "../../contexts/AuthContext";
+import { useTenant } from "../../contexts/TenantContext";
+import { db } from "../../lib/firebase";
+import { useToast } from "../../components/Toast";
 import type { LojaMeta } from "../../types/tenant";
 import { avaliarRegrasFeed } from "../../lib/feedEngine";
+import ComentariosProduto from "../../components/ComentariosProduto";
 
 // ─── TIPOS DE CARD ────────────────────────────────────────────
 interface CustomerPost {
@@ -42,8 +46,10 @@ interface StorePost {
   lojaNome: string;
   lojaSlug: string;
   lojaEmoji: string;
+  lojaLogo?: string | null;
   lojaColor: string;
   lojaGlow: string;
+  lojaAvaliacao?: number;
   _sortTs?: number;
 }
 
@@ -60,7 +66,12 @@ interface MenuCard {
   lojaNome: string;
   lojaSlug: string;
   lojaEmoji: string;
+  lojaLogo?: string | null;
+  lojaColor?: string;
+  lojaGlow?: string;
+  avaliacao?: number;
   vendidosSemana?: number;
+  queroProvarCount?: number;
   _sortTs?: number;
 }
 
@@ -101,15 +112,15 @@ const MOCK_CUSTOMERS: CustomerPost[] = [
 
 // ─── MOCK: posts oficiais da loja ─────────────────────────────
 const MOCK_STORE: StorePost[] = [
-  { _type:"store", id:"ms1", tipo:"promo", texto:"🔥 COMBO DA SEMANA: Açaí 500ml + Granola + Leite Ninho por apenas R$18,90! Válido até domingo. Use o cupom COMBO10.", lojaNome:"Açaí Puro Gosto", lojaSlug:"acaipurogosto", lojaEmoji:"🍧", lojaColor:"#f5c518", lojaGlow:"rgba(245,197,24,0.3)", _sortTs:Date.now()-5*60000 },
-  { _type:"store", id:"ms2", tipo:"novidade", texto:"✨ NOVIDADE: Açaí de Pitaya com Coco Queimado chegou! Venha experimentar essa combinação que virou febre.", lojaNome:"Açaí Puro Gosto", lojaSlug:"acaipurogosto", lojaEmoji:"🍧", lojaColor:"#22c55e", lojaGlow:"rgba(34,197,94,0.3)", _sortTs:Date.now()-25*60000 },
+  { _type:"store", id:"ms1", tipo:"promo", texto:"🔥 COMBO DA SEMANA: Açaí 500ml + Granola + Leite Ninho por apenas R$18,90! Válido até domingo. Use o cupom COMBO10.", lojaNome:"Açaí Puro Gosto", lojaSlug:"acaipurogosto", lojaEmoji:"🍧", lojaColor:"#f5c518", lojaGlow:"rgba(245,197,24,0.3)", lojaAvaliacao:4.9, _sortTs:Date.now()-5*60000 },
+  { _type:"store", id:"ms2", tipo:"novidade", texto:"✨ NOVIDADE: Açaí de Pitaya com Coco Queimado chegou! Venha experimentar essa combinação que virou febre.", lojaNome:"Açaí Puro Gosto", lojaSlug:"acaipurogosto", lojaEmoji:"🍧", lojaColor:"#22c55e", lojaGlow:"rgba(34,197,94,0.3)", lojaAvaliacao:4.9, _sortTs:Date.now()-25*60000 },
 ];
 
 // ─── MOCK: cardápio em destaque ───────────────────────────────
 const MOCK_MENU: MenuCard[] = [
-  { _type:"menu", id:"mm1", produtoId:"p1", nome:"Açaí 500ml Premium", desc:"Açaí batido na hora com frutas da época, granola crocante e leite condensado", preco:15.90, foto:null, emoji:"🍓", bgGradient:"linear-gradient(160deg,#2e0a3a,#7c3aed 45%,#9333ea)", lojaNome:"Açaí Puro Gosto", lojaSlug:"acaipurogosto", lojaEmoji:"🍧", vendidosSemana:147, _sortTs:Date.now()-12*60000 },
-  { _type:"menu", id:"mm2", produtoId:"p2", nome:"Combo Família 1 Litro", desc:"O mais pedido da semana! Açaí 1L com 3 complementos à sua escolha", preco:32.00, foto:null, emoji:"👨‍👩‍👧", bgGradient:"linear-gradient(160deg,#0a1628,#1e3a8a 45%,#3b82f6)", lojaNome:"Açaí Puro Gosto", lojaSlug:"acaipurogosto", lojaEmoji:"🍧", vendidosSemana:89, _sortTs:Date.now()-40*60000 },
-  { _type:"menu", id:"mm3", produtoId:"p3", nome:"Açaí de Pitaya 400ml", desc:"Novidade da casa! Pitaya rosa com açaí batido, granola e coco queimado", preco:18.90, foto:null, emoji:"🐉", bgGradient:"linear-gradient(160deg,#2d0030,#9d174d 45%,#ec4899)", lojaNome:"Açaí Puro Gosto", lojaSlug:"acaipurogosto", lojaEmoji:"🍧", vendidosSemana:62, _sortTs:Date.now()-80*60000 },
+  { _type:"menu", id:"mm1", produtoId:"p1", nome:"Açaí 500ml Premium", desc:"Açaí batido na hora com frutas da época, granola crocante e leite condensado", preco:15.90, foto:null, emoji:"🍓", bgGradient:"linear-gradient(160deg,#2e0a3a,#7c3aed 45%,#9333ea)", lojaNome:"Açaí Puro Gosto", lojaSlug:"acaipurogosto", lojaEmoji:"🍧", avaliacao:4.9, vendidosSemana:147, _sortTs:Date.now()-12*60000 },
+  { _type:"menu", id:"mm2", produtoId:"p2", nome:"Combo Família 1 Litro", desc:"O mais pedido da semana! Açaí 1L com 3 complementos à sua escolha", preco:32.00, foto:null, emoji:"👨‍👩‍👧", bgGradient:"linear-gradient(160deg,#0a1628,#1e3a8a 45%,#3b82f6)", lojaNome:"Açaí Puro Gosto", lojaSlug:"acaipurogosto", lojaEmoji:"🍧", avaliacao:4.9, vendidosSemana:89, _sortTs:Date.now()-40*60000 },
+  { _type:"menu", id:"mm3", produtoId:"p3", nome:"Açaí de Pitaya 400ml", desc:"Novidade da casa! Pitaya rosa com açaí batido, granola e coco queimado", preco:18.90, foto:null, emoji:"🐉", bgGradient:"linear-gradient(160deg,#2d0030,#9d174d 45%,#ec4899)", lojaNome:"Açaí Puro Gosto", lojaSlug:"acaipurogosto", lojaEmoji:"🍧", avaliacao:4.9, vendidosSemana:62, _sortTs:Date.now()-80*60000 },
 ];
 
 // ─── MOCK: top compradores da semana ─────────────────────────
@@ -179,17 +190,23 @@ function buildFeed(
 // ─── SIDEBAR INOVADORA (cardápio/loja) ───────────────────────
 function NexSidebar({ lojaSlug, nome, legenda }: { lojaSlug?: string; nome?: string; legenda?: string }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const toast = useToast();
   const [fome, setFome] = useState(false);
   const [fomes, setFomes] = useState(Math.floor(40 + Math.random() * 200));
   const [querTentar, setQuerTentar] = useState(false);
   const [tentarCount, setTentarCount] = useState(Math.floor(10 + Math.random() * 80));
   const [showReacoes, setShowReacoes] = useState(false);
   const [reacaoRapida, setReacaoRapida] = useState<string | null>(null);
+  const [comentarioModal, setComentarioModal] = useState<{ id: string; nome: string; foto?: string | null } | null>(null);
+  const [comentariosCount, setComentariosCount] = useState(Math.floor(10 + Math.random() * 90));
+  const [chamaCount, setChamaCount] = useState(Math.floor(5 + Math.random() * 30));
+  const [repostCount, setRepostCount] = useState(Math.floor(3 + Math.random() * 20));
 
   const REACOES_RAPIDAS = [
-    { emoji:"🤤", label:"Gostoso" }, { emoji:"🔥", label:"Perfeito" },
-    { emoji:"💰", label:"Barato" },  { emoji:"🚀", label:"Rápido" },
-    { emoji:"😍", label:"Amei" },    { emoji:"👑", label:"O melhor" },
+    { emoji:"🤤" }, { emoji:"🔥" }, { emoji:"💰" }, { emoji:"🚀" },
+    { emoji:"😍" }, { emoji:"👑" }, { emoji:"😋" }, { emoji:"🥰" },
+    { emoji:"💎" }, { emoji:"🎉" }, { emoji:"✨" }, { emoji:"🍓" },
   ];
 
   const fmt = (n: number) => n >= 1000 ? `${(n/1000).toFixed(1)}k` : String(n);
@@ -205,83 +222,37 @@ function NexSidebar({ lojaSlug, nome, legenda }: { lojaSlug?: string; nome?: str
         )}
       </AnimatePresence>
 
-      <div style={{ position:"absolute", right:10, bottom:200, display:"flex", flexDirection:"column", alignItems:"center", gap:6, zIndex:10 }}>
-        {/* 🔥 Fome */}
-        <motion.button whileTap={{ scale:1.35 }} onClick={() => { setFome(p => !p); setFomes(p => p + (fome ? -1 : 1)); }}
-          style={{ background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-          <motion.div animate={fome ? { scale:[1,1.6,1], rotate:[0,15,-15,0] } : {}} transition={{ duration:.45 }}
-            style={{ width:38, height:38, borderRadius:12, background:fome?"rgba(239,68,68,.25)":"rgba(255,255,255,.1)", backdropFilter:"blur(8px)", border:`1.5px solid ${fome?"rgba(239,68,68,.6)":"rgba(255,255,255,.2)"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.45rem", boxShadow:fome?"0 0 16px rgba(239,68,68,.4)":"none", transition:"all .25s" }}>
-            🔥
-          </motion.div>
-          <span style={{ fontSize:"0.56rem", color:fome?"#fca5a5":"rgba(255,255,255,.8)", fontWeight:800, textShadow:"0 1px 4px rgba(0,0,0,.9)" }}>{fmt(fomes)}</span>
-          <span style={{ fontSize:"0.48rem", color:"rgba(255,255,255,.45)", fontWeight:600, textShadow:"0 1px 4px rgba(0,0,0,.9)", marginTop:-2 }}>Fome</span>
-        </motion.button>
-
-        {/* 🛒 Pedir */}
-        <motion.button whileTap={{ scale:1.2 }} onClick={() => lojaSlug && navigate(`/loja/${lojaSlug}`)}
-          style={{ background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-          <div style={{ width:38, height:38, borderRadius:12, background:"rgba(245,197,24,.18)", backdropFilter:"blur(8px)", border:"1.5px solid rgba(245,197,24,.4)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 0 12px rgba(245,197,24,.15)" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f5c518" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-          </div>
-          <span style={{ fontSize:"0.56rem", color:"#f5c518", fontWeight:800, textShadow:"0 1px 4px rgba(0,0,0,.9)" }}>Pedir</span>
-          <span style={{ fontSize:"0.48rem", color:"rgba(255,255,255,.45)", fontWeight:600, marginTop:-2 }}>agora</span>
-        </motion.button>
+      <div style={{ position:"absolute", right:10, top:"38%", transform:"translateY(-50%)", display:"flex", flexDirection:"column", alignItems:"center", gap:6, zIndex:10 }}>
 
         {/* 💬 Reagir */}
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4, position:"relative" }}>
-          <AnimatePresence>
-            {showReacoes && (
-              <motion.div initial={{ opacity:0, scale:.8, y:10 }} animate={{ opacity:1, scale:1, y:0 }} exit={{ opacity:0, scale:.8, y:10 }}
-                style={{ position:"absolute", bottom:58, right:0, background:"rgba(8,4,18,.95)", backdropFilter:"blur(16px)", border:"1px solid rgba(255,255,255,.12)", borderRadius:18, padding:"10px 8px", display:"flex", flexDirection:"column", gap:6, zIndex:20 }}>
-                {REACOES_RAPIDAS.map(r => (
-                  <motion.button key={r.emoji} whileTap={{ scale:1.3 }} onClick={() => { setReacaoRapida(r.emoji); setShowReacoes(false); setTimeout(() => setReacaoRapida(null), 1800); }}
-                    style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:8, padding:"4px 8px", borderRadius:10 }}
-                    onMouseEnter={e => (e.currentTarget.style.background="rgba(255,255,255,.08)")}
-                    onMouseLeave={e => (e.currentTarget.style.background="none")}>
-                    <span style={{ fontSize:"1.2rem" }}>{r.emoji}</span>
-                    <span style={{ fontSize:"0.65rem", color:"rgba(255,255,255,.7)", fontWeight:600, whiteSpace:"nowrap" }}>{r.label}</span>
-                  </motion.button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <motion.button whileTap={{ scale:1.2 }} onClick={() => setShowReacoes(p => !p)}
+          <motion.button whileTap={{ scale:1.2 }} onClick={() => { setShowReacoes(p => !p); if (!showReacoes) setComentarioModal({ id: `feed_${Date.now()}`, nome: nome || "Produto", foto: null }); }}
             style={{ background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
             <div style={{ width:38, height:38, borderRadius:12, background:"rgba(255,255,255,.1)", backdropFilter:"blur(8px)", border:"1.5px solid rgba(255,255,255,.2)", display:"flex", alignItems:"center", justifyContent:"center" }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             </div>
-            <span style={{ fontSize:"0.56rem", color:"rgba(255,255,255,.8)", fontWeight:800, textShadow:"0 1px 4px rgba(0,0,0,.9)" }}>Reagir</span>
+            <span style={{ fontSize:"0.56rem", color:"rgba(255,255,255,.8)", fontWeight:800, textShadow:"0 1px 4px rgba(0,0,0,.9)" }}>{fmt(comentariosCount)}</span>
           </motion.button>
         </div>
 
-        {/* 🎯 Quero tentar */}
-        <motion.button whileTap={{ scale:1.3 }} onClick={() => { setQuerTentar(p => !p); setTentarCount(p => p + (querTentar ? -1 : 1)); }}
-          style={{ background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-          <motion.div animate={querTentar ? { scale:[1,1.5,1] } : {}} transition={{ duration:.35 }}
-            style={{ width:38, height:38, borderRadius:12, background:querTentar?"rgba(168,85,247,.25)":"rgba(255,255,255,.1)", backdropFilter:"blur(8px)", border:`1.5px solid ${querTentar?"rgba(168,85,247,.6)":"rgba(255,255,255,.2)"}`, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:querTentar?"0 0 16px rgba(168,85,247,.4)":"none", transition:"all .25s" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill={querTentar?"#a855f7":"none"} stroke={querTentar?"#a855f7":"rgba(255,255,255,.9)"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-          </motion.div>
-          <span style={{ fontSize:"0.56rem", color:querTentar?"#c084fc":"rgba(255,255,255,.8)", fontWeight:800, textShadow:"0 1px 4px rgba(0,0,0,.9)" }}>{fmt(tentarCount)}</span>
-          <span style={{ fontSize:"0.48rem", color:"rgba(255,255,255,.45)", fontWeight:600, marginTop:-2 }}>Quero</span>
-        </motion.button>
-
         {/* 🤝 Chama */}
         <motion.button whileTap={{ scale:1.2 }}
-          onClick={() => navigator.share?.({ title:"Olha isso no NexFoody!", text:`${legenda||nome||""}\n\nVem comigo 🍓`, url:window.location.href }).catch(()=>{})}
+          onClick={() => { setChamaCount(c => c + 1); navigator.share?.({ title:"Olha isso no NexFoody!", text:`${legenda||nome||""}\n\nVem comigo 🍓`, url:window.location.href }).catch(()=>{}) }}
           style={{ background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
           <div style={{ width:38, height:38, borderRadius:12, background:"rgba(52,211,153,.15)", backdropFilter:"blur(8px)", border:"1.5px solid rgba(52,211,153,.35)", display:"flex", alignItems:"center", justifyContent:"center" }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
           </div>
-          <span style={{ fontSize:"0.56rem", color:"#34d399", fontWeight:800, textShadow:"0 1px 4px rgba(0,0,0,.9)" }}>Chama</span>
+          <span style={{ fontSize:"0.56rem", color:"#34d399", fontWeight:800, textShadow:"0 1px 4px rgba(0,0,0,.9)" }}>{fmt(chamaCount)}</span>
         </motion.button>
 
         {/* 🔁 Repostar */}
         <motion.button whileTap={{ scale:1.2 }}
+          onClick={() => { if (!user?.uid) { toast("Faça login para repostar 🍓", "info"); return; } setRepostCount(c => c + 1); }}
           style={{ background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
           <div style={{ width:38, height:38, borderRadius:12, background:"rgba(255,255,255,.08)", backdropFilter:"blur(8px)", border:"1.5px solid rgba(255,255,255,.15)", display:"flex", alignItems:"center", justifyContent:"center" }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.8)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
           </div>
-          <span style={{ fontSize:"0.56rem", color:"rgba(255,255,255,.7)", fontWeight:800, textShadow:"0 1px 4px rgba(0,0,0,.9)" }}>Repostar</span>
+          <span style={{ fontSize:"0.56rem", color:"rgba(255,255,255,.7)", fontWeight:800, textShadow:"0 1px 4px rgba(0,0,0,.9)" }}>{fmt(repostCount)}</span>
         </motion.button>
 
         {/* 🛍️ + Lojas */}
@@ -291,14 +262,30 @@ function NexSidebar({ lojaSlug, nome, legenda }: { lojaSlug?: string; nome?: str
           </div>
           <span style={{ fontSize:"0.56rem", color:"#a5b4fc", fontWeight:800, textShadow:"0 1px 4px rgba(0,0,0,.9)" }}>+ Lojas</span>
         </Link>
-
       </div>
+      {comentarioModal && (
+        <ComentariosProduto produto={comentarioModal} onClose={() => { setComentarioModal(null); setShowReacoes(false); }}>
+          {showReacoes && (
+            <div style={{ background:"rgba(8,4,18,.97)", borderBottom:"1px solid rgba(255,255,255,.12)", padding:"8px 12px", display:"flex", flexDirection:"row", gap:0, alignItems:"center", overflowX:"auto", scrollbarWidth:"none", flexShrink:0 }}>
+              {REACOES_RAPIDAS.map(r => (
+                <button key={r.emoji} onClick={() => { setReacaoRapida(r.emoji); setShowReacoes(false); setTimeout(() => setReacaoRapida(null), 1800); }}
+                  style={{ background:"none", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:"8px 9px", borderRadius:10, flexShrink:0, fontSize:"1.5rem" }}>
+                  {r.emoji}
+                </button>
+              ))}
+            </div>
+          )}
+        </ComentariosProduto>
+      )}
     </>
   );
 }
 
 // ─── CARD: POST DE CLIENTE ────────────────────────────────────
-function CustomerPostCard({ post, isCurrent, userId }: { post: CustomerPost; isCurrent: boolean; userId?: string }) {
+function CustomerPostCard({ post, isCurrent, userId, seguindo, onSeguir }: { post: CustomerPost; isCurrent: boolean; userId?: string; seguindo: boolean; onSeguir: () => void }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const toast = useToast();
   const [curtido, setCurtido] = useState(userId ? (post.curtidas?.includes(userId) ?? false) : false);
   const [curtidas, setCurtidas] = useState(post.curtidas?.length ?? 0);
   const [openComments, setOpenComments] = useState(false);
@@ -475,6 +462,7 @@ function CustomerPostCard({ post, isCurrent, userId }: { post: CustomerPost; isC
 
         {/* 🔁 Repostar */}
         <motion.button whileTap={{ scale:1.2 }}
+          onClick={() => { if (!user?.uid) { toast("Faça login para repostar 🍓", "info"); return; } }}
           style={{ background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
           <div style={{ width:38, height:38, borderRadius:12, background:"rgba(255,255,255,.1)", backdropFilter:"blur(8px)", border:"1.5px solid rgba(255,255,255,.2)", display:"flex", alignItems:"center", justifyContent:"center" }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
@@ -504,6 +492,14 @@ function CustomerPostCard({ post, isCurrent, userId }: { post: CustomerPost; isC
           <span style={{ fontSize:"0.56rem", color:"rgba(255,255,255,.7)", fontWeight:800, textShadow:"0 1px 4px rgba(0,0,0,.9)" }}>Enviar</span>
         </motion.button>
 
+        {/* 🛍️ + Lojas */}
+        <Link to="/lojas" style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2, textDecoration:"none" }}>
+          <div style={{ width:38, height:38, borderRadius:12, background:"rgba(99,102,241,.18)", backdropFilter:"blur(8px)", border:"1.5px solid rgba(99,102,241,.45)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1rem" }}>
+            🛍️
+          </div>
+          <span style={{ fontSize:"0.56rem", color:"#a5b4fc", fontWeight:800, textShadow:"0 1px 4px rgba(0,0,0,.9)" }}>+ Lojas</span>
+        </Link>
+
       </div>
 
       <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"0 14px 22px", zIndex:10 }}>
@@ -528,7 +524,7 @@ function CustomerPostCard({ post, isCurrent, userId }: { post: CustomerPost; isC
                 <div style={{ fontSize:"0.65rem", color:"rgba(255,255,255,.5)" }}>⭐ {post.lojaAvaliacao?.toFixed(1)} · 15–30min</div>
               </div>
             </div>
-            <Link to={`/loja/${post.lojaSlug}`} style={{ display:"flex", alignItems:"center", gap:5, background:"linear-gradient(135deg,#f5c518,#e6a817)", borderRadius:20, padding:"7px 14px", fontWeight:800, fontSize:"0.75rem", color:"#0a0414", textDecoration:"none", flexShrink:0, marginLeft:10 }}>Pedir →</Link>
+            <Link to={`/loja/${post.lojaSlug}`} style={{ display:"flex", alignItems:"center", gap:5, background:"linear-gradient(135deg,#f5c518,#e6a817)", borderRadius:20, padding:"7px 14px", fontWeight:800, fontSize:"0.75rem", color:"#0a0414", textDecoration:"none", flexShrink:0, marginLeft:8 }}>Pedir →</Link>
           </motion.div>
         )}
       </div>
@@ -553,7 +549,7 @@ function CustomerPostCard({ post, isCurrent, userId }: { post: CustomerPost; isC
 }
 
 // ─── CARD: POST OFICIAL DA LOJA ───────────────────────────────
-function StorePostCard({ post, isCurrent }: { post: StorePost; isCurrent: boolean }) {
+function StorePostCard({ post, isCurrent, seguindo, onSeguir }: { post: StorePost; isCurrent: boolean; seguindo: boolean; onSeguir: () => void }) {
   const cfg = TIPO_CFG[post.tipo] || TIPO_CFG.aviso;
   return (
     <div style={{ position:"relative", width:"100%", height:"100%", overflow:"hidden" }}>
@@ -566,12 +562,16 @@ function StorePostCard({ post, isCurrent }: { post: StorePost; isCurrent: boolea
       }
       <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom,rgba(0,0,0,.12) 0%,transparent 20%,transparent 40%,rgba(0,0,0,.7) 75%,rgba(0,0,0,.95) 100%)", pointerEvents:"none" }} />
       <NexSidebar lojaSlug={post.lojaSlug} legenda={post.texto} />
-      <div style={{ position:"absolute", top:14, left:14, right:14, display:"flex", alignItems:"center", gap:8, zIndex:10 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(8,4,18,.7)", backdropFilter:"blur(10px)", border:`1px solid ${post.lojaColor}40`, borderRadius:20, padding:"5px 12px" }}>
-          <span style={{ fontSize:"1rem" }}>{post.lojaEmoji}</span>
+      <div style={{ position:"absolute", top:14, left:14, right:14, display:"flex", alignItems:"center", gap:8, zIndex:50 }}>
+        <Link to={`/loja/${post.lojaSlug}`} style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(8,4,18,.7)", backdropFilter:"blur(10px)", border:`1px solid ${post.lojaColor}40`, borderRadius:20, padding:"5px 12px", textDecoration:"none" }}>
+          {post.lojaLogo
+            ? <img src={post.lojaLogo} alt={post.lojaNome} style={{ width:24, height:24, borderRadius:6, objectFit:"cover", flexShrink:0 }} />
+            : <div style={{ width:24, height:24, borderRadius:8, background:`${post.lojaColor}20`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1rem", flexShrink:0 }}>{post.lojaEmoji}</div>
+          }
+          <span style={{ fontSize:"0.65rem", fontWeight:800, color:"#1a1a1a", background:"#f5c518", borderRadius:10, padding:"2px 7px" }}>⭐ 4.9</span>
           <span style={{ fontSize:"0.72rem", fontWeight:800, color:post.lojaColor }}>{post.lojaNome}</span>
           <span style={{ fontSize:"0.6rem", color:"rgba(255,255,255,.4)", borderLeft:"1px solid rgba(255,255,255,.1)", paddingLeft:6 }}>Parceiro</span>
-        </div>
+        </Link>
         <div style={{ display:"flex", alignItems:"center", gap:4, background:`${cfg.color}22`, border:`1px solid ${cfg.color}50`, borderRadius:20, padding:"5px 10px", marginLeft:"auto" }}>
           <span style={{ fontSize:"0.75rem" }}>{cfg.emoji}</span>
           <span style={{ fontSize:"0.68rem", fontWeight:700, color:cfg.color }}>{cfg.label}</span>
@@ -597,7 +597,71 @@ function StorePostCard({ post, isCurrent }: { post: StorePost; isCurrent: boolea
 }
 
 // ─── CARD: PRODUTO DO CARDÁPIO ────────────────────────────────
-function MenuItemCard({ card, isCurrent }: { card: MenuCard; isCurrent: boolean }) {
+function MenuItemCard({ card, isCurrent, seguindo, onSeguir, focoTotal, novosIds }: { card: MenuCard; isCurrent: boolean; seguindo: boolean; onSeguir: () => void; focoTotal?: boolean; novosIds?: Set<string> }) {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const toast = useToast();
+  const [fome, setFome] = useState(false);
+  const [fomes, setFomes] = useState(card.vendidosSemana || 0);
+  const [reagiu, setReagiu] = useState(false);
+  const [ativoQuero, setAtivoQuero] = useState(false);
+  const [queroProvarCount, setQueroProvarCount] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuProdutos, setMenuProdutos] = useState<any[]>([]);
+  const fmt = (n: number) => n >= 1000 ? `${(n/1000).toFixed(1)}k` : String(n);
+  const REACOES_RAPIDAS = [
+    { emoji:"🤤", label:"Gostoso" }, { emoji:"🔥", label:"Perfeito" },
+    { emoji:"💰", label:"Barato" },  { emoji:"🚀", label:"Rápido" },
+    { emoji:"😍", label:"Amei" },    { emoji:"👑", label:"O melhor" },
+  ];
+
+  // Verificar se já está na lista Quero Provar
+  useEffect(() => {
+    if (!user?.uid) return;
+    const chave = `queroProvar_${user.uid}`;
+    const lista = JSON.parse(localStorage.getItem(chave) || "[]");
+    setAtivoQuero(lista.some((d: any) => d.produtoId === card.produtoId));
+  }, [user?.uid, card.produtoId]);
+
+  // Listener real-time do contador queroProvarCount
+  useEffect(() => {
+    if (!isCurrent) return;
+    const unsub = onSnapshot(
+      doc(db, `tenants/${card.lojaSlug}/produtos/${card.produtoId}`),
+      snap => setQueroProvarCount(snap.data()?.queroProvarCount || 0)
+    );
+    return unsub;
+  }, [isCurrent, card.lojaSlug, card.produtoId]);
+
+  // Carregar top 4 produtos ao abrir menu
+  useEffect(() => {
+    if (!menuOpen || menuProdutos.length > 0) return;
+    getDocs(query(collection(db, `tenants/${card.lojaSlug}/produtos`), where("ativo", "==", true), limit(20))).then(snap => {
+      setMenuProdutos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }).catch(() => {});
+  }, [menuOpen]);
+
+  const toggleQueroProvar = async (e: any) => {
+    e?.stopPropagation();
+    if (!user?.uid) { toast("Faça login para salvar itens 🤤", "info"); return; }
+    const chave = `queroProvar_${user.uid}`;
+    const lista: any[] = JSON.parse(localStorage.getItem(chave) || "[]");
+    const jaExiste = lista.some((d: any) => d.produtoId === card.produtoId);
+    const novo = jaExiste
+      ? lista.filter((d: any) => d.produtoId !== card.produtoId)
+      : [{ id: Date.now(), produtoId: card.produtoId, nome: card.nome, foto: card.foto || null, preco: card.preco || 0, lojaSlug: card.lojaSlug, adicionandoEm: new Date().toISOString() }, ...lista].slice(0, 20);
+    localStorage.setItem(chave, JSON.stringify(novo));
+    setAtivoQuero(!jaExiste);
+    // Firestore sync
+    try {
+      await updateDoc(doc(db, "users", user.uid), {
+        [`queroProvar.${card.produtoId}`]: jaExiste ? deleteField() : { produtoId: card.produtoId, nome: card.nome, foto: card.foto || null, preco: card.preco || 0, lojaSlug: card.lojaSlug, adicionandoEm: new Date().toISOString() }
+      });
+      await setDoc(doc(db, `tenants/${card.lojaSlug}/produtos/${card.produtoId}`),
+        { queroProvarCount: increment(jaExiste ? -1 : 1) }, { merge: true });
+    } catch {}
+    toast(jaExiste ? "Removido da sua lista Quero Provar" : "🤤 Adicionado à lista Quero Provar em seu perfil!");
+  };
   return (
     <div style={{ position:"relative", width:"100%", height:"100%", overflow:"hidden" }}>
       {card.foto
@@ -607,40 +671,144 @@ function MenuItemCard({ card, isCurrent }: { card: MenuCard; isCurrent: boolean 
           </div>
       }
       <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom,rgba(0,0,0,.08) 0%,transparent 20%,transparent 40%,rgba(0,0,0,.6) 70%,rgba(0,0,0,.95) 100%)", pointerEvents:"none" }} />
-      <NexSidebar lojaSlug={card.lojaSlug} nome={card.nome} legenda={card.desc} />
+      {!focoTotal && <NexSidebar lojaSlug={card.lojaSlug} nome={card.nome} legenda={card.desc} />}
 
       {/* Badges topo */}
+      {!focoTotal && (
       <div style={{ position:"absolute", top:14, left:14, right:14, display:"flex", alignItems:"center", gap:8, zIndex:10 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(8,4,18,.7)", backdropFilter:"blur(10px)", border:"1px solid rgba(245,197,24,.3)", borderRadius:20, padding:"5px 12px" }}>
-          <span style={{ fontSize:"1rem" }}>{card.lojaEmoji}</span>
+        <Link to={`/loja/${card.lojaSlug}`} style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(8,4,18,.7)", backdropFilter:"blur(10px)", border:"1px solid rgba(245,197,24,.3)", borderRadius:20, padding:"5px 12px", textDecoration:"none" }}>
+          {card.lojaLogo
+            ? <img src={card.lojaLogo} alt={card.lojaNome} style={{ width:24, height:24, borderRadius:6, objectFit:"cover", flexShrink:0 }} />
+            : <div style={{ width:24, height:24, borderRadius:8, background:"rgba(245,197,24,.15)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1rem", flexShrink:0 }}>{card.lojaEmoji}</div>
+          }
           <span style={{ fontSize:"0.72rem", fontWeight:800, color:"#f5c518" }}>{card.lojaNome}</span>
-        </div>
-        <div style={{ display:"flex", alignItems:"center", gap:4, background:"rgba(245,197,24,.15)", border:"1px solid rgba(245,197,24,.4)", borderRadius:20, padding:"5px 10px", marginLeft:"auto" }}>
-          <span style={{ fontSize:"0.75rem" }}>🍽️</span>
-          <span style={{ fontSize:"0.68rem", fontWeight:700, color:"#f5c518" }}>Cardápio</span>
-        </div>
+        </Link>
+        <motion.button whileTap={{ scale:.93 }} onClick={e => { e.stopPropagation(); onSeguir(); }}
+          style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:4, background: seguindo ? "rgba(245,197,24,.18)" : "rgba(255,255,255,.1)", backdropFilter:"blur(10px)", border: seguindo ? "1px solid rgba(245,197,24,.5)" : "1px solid rgba(255,255,255,.2)", borderRadius:20, padding:"5px 13px", cursor:"pointer", flexShrink:0, transition:"all .2s" }}>
+          <span style={{ fontSize:"0.7rem", fontWeight:800, color: seguindo ? "#f5c518" : "#fff", whiteSpace:"nowrap" }}>
+            {seguindo ? "✓ Seguindo" : "+ Seguir"}
+          </span>
+        </motion.button>
       </div>
+      )}
 
-      {/* Produto centralizado */}
-      <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-55%)", textAlign:"center", zIndex:5, width:"85%", pointerEvents:"none" }}>
+      {/* Produto — próximo do rodapé para dar destaque ao preço + CTA */}
+      {!focoTotal && (
+      <div style={{ position:"absolute", top:"auto", bottom:130, left:"50%", transform:"translateX(-50%)", textAlign:"center", zIndex:5, width:"85%", pointerEvents:"none" }}>
         <motion.div initial={{ opacity:0, y:16 }} animate={isCurrent ? { opacity:1, y:0 } : {}} transition={{ delay:.2, duration:.5 }}>
-          <div style={{ fontFamily:"'Fraunces',serif", fontSize:"clamp(1.5rem,5vw,2.2rem)", fontWeight:900, color:"#fff", textShadow:"0 2px 12px rgba(0,0,0,.8)", lineHeight:1.1, marginBottom:10 }}>{card.nome}</div>
-          {card.vendidosSemana && (
-            <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"rgba(245,197,24,.15)", border:"1px solid rgba(245,197,24,.35)", borderRadius:20, padding:"4px 12px", fontSize:"0.72rem", fontWeight:700, color:"#f5c518" }}>
-              🔥 {card.vendidosSemana} pedidos essa semana
+          <div style={{ fontFamily:"'Outfit',sans-serif", fontSize:"clamp(1.1rem,3.5vw,1.5rem)", fontWeight:800, color:"#fff", textShadow:"0 2px 12px rgba(0,0,0,.8)", lineHeight:1.15, marginBottom:8 }}>{card.nome}</div>
+          {(card.vendidosSemana || card.avaliacao) && (
+            <div style={{ display:"inline-flex", alignItems:"center", gap:8, flexWrap:"wrap", justifyContent:"center", marginBottom:10 }}>
+              {card.vendidosSemana && (
+                <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"rgba(245,197,24,.15)", border:"1px solid rgba(245,197,24,.35)", borderRadius:20, padding:"4px 12px", fontSize:"0.72rem", fontWeight:700, color:"#f5c518" }}>
+                  🔥 {card.vendidosSemana} pedidos essa semana
+                </div>
+              )}
+              {card.avaliacao && (
+                <div style={{ display:"inline-flex", alignItems:"center", gap:4, background:"rgba(34,211,153,.15)", border:"1px solid rgba(34,211,153,.35)", borderRadius:20, padding:"4px 10px", fontSize:"0.72rem", fontWeight:700, color:"#34d399" }}>
+                  ⭐ {card.avaliacao.toFixed(1)}
+                </div>
+              )}
+              {novosIds?.has(card.produtoId) && (
+                <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"rgba(34,211,153,.15)", border:"1px solid rgba(34,211,153,.35)", borderRadius:20, padding:"4px 10px", fontSize:"0.72rem", fontWeight:700, color:"#34d399" }}>
+                  🆕 Novo pra você
+                </div>
+              )}
+              {queroProvarCount > 0 && (
+                <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"rgba(168,85,247,.15)", border:"1px solid rgba(168,85,247,.35)", borderRadius:20, padding:"4px 12px", fontSize:"0.72rem", fontWeight:700, color:"#a855f7" }}>
+                  🤤 {queroProvarCount} {queroProvarCount === 1 ? "pessoa quer provar" : "pessoas querem provar"}
+                </div>
+              )}
             </div>
           )}
+          {/* 3 botões centralizados */}
+          <div style={{ display:"flex", justifyContent:"center", gap:16, marginTop:12, marginBottom:0, pointerEvents:"all" }}>
+            {/* 🔥 Fome */}
+            <motion.button whileTap={{ scale:1.35 }} onClick={() => { setFome(p => !p); setFomes(p => p + (fome ? -1 : 1)); }}
+              style={{ background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+              <motion.div animate={fome ? { scale:[1,1.6,1], rotate:[0,15,-15,0] } : {}} transition={{ duration:.45 }}
+                style={{ width:38, height:38, borderRadius:12, background:fome?"rgba(239,68,68,.25)":"rgba(255,255,255,.1)", backdropFilter:"blur(8px)", border:`1.5px solid ${fome?"rgba(239,68,68,.6)":"rgba(255,255,255,.2)"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.45rem", boxShadow:fome?"0 0 16px rgba(239,68,68,.4)":"none", transition:"all .25s" }}>
+                🔥
+              </motion.div>
+              <span style={{ fontSize:"0.56rem", color:fome?"#fca5a5":"rgba(255,255,255,.8)", fontWeight:800, textShadow:"0 1px 4px rgba(0,0,0,.9)" }}>{fomes}</span>
+            </motion.button>
+            {/* 📋 Menu */}
+            <motion.button whileTap={{ scale:1.2 }} onClick={() => { setMenuOpen(true); setMenuProdutos([]); }}
+              style={{ background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+              <div style={{ width:38, height:38, borderRadius:12, background:"rgba(245,197,24,.18)", backdropFilter:"blur(8px)", border:"1.5px solid rgba(245,197,24,.4)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 0 12px rgba(245,197,24,.15)" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f5c518" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </div>
+              <span style={{ fontSize:"0.56rem", color:"#f5c518", fontWeight:800, textShadow:"0 1px 4px rgba(0,0,0,.9)" }}>Menu</span>
+            </motion.button>
+            {/* 🤤 Quero */}
+            <motion.button whileTap={{ scale:1.3 }} onClick={toggleQueroProvar}
+              style={{ background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+              <div style={{ width:38, height:38, borderRadius:12, background:ativoQuero?"rgba(168,85,247,.25)":"rgba(255,255,255,.1)", backdropFilter:"blur(8px)", border:`1.5px solid ${ativoQuero?"rgba(168,85,247,.6)":"rgba(255,255,255,.2)"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.4rem", boxShadow:ativoQuero?"0 0 16px rgba(168,85,247,.4)":"none", transition:"all .25s" }}>
+                🤤
+              </div>
+              <span style={{ fontSize:"0.56rem", color:ativoQuero?"#c084fc":"rgba(255,255,255,.8)", fontWeight:800, textShadow:"0 1px 4px rgba(0,0,0,.9)" }}>
+                {ativoQuero ? "🤤 Salvo" : "Quero"}
+              </span>
+            </motion.button>
+          </div>
         </motion.div>
       </div>
+      )}
+
+      {/* Popup Menu — carousel de produtos */}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div initial={{ opacity:0, x:-20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }} transition={{ duration:.25 }}
+            style={{ position:"absolute", bottom:124, left:0, right:145, marginLeft:14, zIndex:30, width:"85%", maxWidth:360, background:"rgba(12,4,26,.97)", backdropFilter:"blur(20px)", border:"1px solid rgba(245,197,24,.25)", borderRadius:20, padding:"16px", boxShadow:"0 8px 32px rgba(0,0,0,.6)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <div style={{ width:32, height:32, borderRadius:10, background:"rgba(245,197,24,.15)", border:"1px solid rgba(245,197,24,.3)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f5c518" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </div>
+                <span style={{ fontWeight:800, fontSize:"0.88rem", color:"#f5c518" }}>Cardápio — Os mais pedidos</span>
+              </div>
+              <button onClick={() => setMenuOpen(false)} style={{ background:"none", border:"none", color:"rgba(255,255,255,.4)", cursor:"pointer", fontSize:"1rem" }}>✕</button>
+            </div>
+            {/* Carousel vertical */}
+            <div style={{ display:"flex", flexDirection:"column", gap:8, overflowY:"auto", maxHeight:240, paddingRight:4, marginBottom:10, scrollbarWidth:"none" }}>
+              {menuProdutos.length === 0 ? (
+                <div style={{ textAlign:"center", padding:"20px 0", color:"rgba(255,255,255,.3)", fontSize:"0.8rem", width:"100%" }}>Carregando...</div>
+              ) : menuProdutos.map(p => (
+                <div key={p.id} onClick={() => navigate(`/loja/${card.lojaSlug}`)} style={{ display:"flex", alignItems:"center", gap:10, background:"rgba(255,255,255,.04)", border:"1px solid rgba(255,255,255,.07)", borderRadius:12, padding:"8px 10px", cursor:"pointer", flexShrink:0 }}>
+                  {p.foto ? (
+                    <img src={p.foto} alt="" style={{ width:44, height:44, borderRadius:8, objectFit:"cover", flexShrink:0 }} />
+                  ) : (
+                    <div style={{ width:44, height:44, borderRadius:8, background:"rgba(245,197,24,.1)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.2rem", flexShrink:0 }}>{p.emoji || "🍓"}</div>
+                  )}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:700, fontSize:"0.8rem", color:"#fff", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{p.nome}</div>
+                    <div style={{ fontSize:"0.68rem", color:"rgba(255,255,255,.4)", marginTop:2 }}>{p.desc || p.descricao}</div>
+                  </div>
+                  <div style={{ fontFamily:"'Fraunces',serif", fontSize:"0.9rem", fontWeight:900, color:"#f5c518", flexShrink:0 }}>R$ {Number(p.preco).toFixed(2).replace(".",",")}</div>
+                </div>
+              ))}
+            </div>
+            {/* Frase CTA */}
+            <div onClick={() => navigate(`/loja/${card.lojaSlug}`)} style={{ textAlign:"center", cursor:"pointer", padding:"6px 0 0", borderTop:"1px solid rgba(255,255,255,.06)" }}>
+              <span style={{ fontSize:"0.72rem", color:"rgba(255,255,255,.4)" }}>Quer ver o cardápio completo? </span>
+              <span style={{ fontSize:"0.72rem", color:"#f5c518", fontWeight:700 }}>Ver todos →</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Rodapé */}
+      {!focoTotal && (
       <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"0 14px 12px", zIndex:10 }}>
         <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:.1 }} style={{ background:"rgba(8,4,18,.82)", backdropFilter:"blur(14px)", border:"1px solid rgba(255,255,255,.1)", borderRadius:18, padding:"14px 16px", marginBottom:12 }}>
           {card.desc && <div style={{ fontSize:"0.82rem", color:"rgba(255,255,255,.7)", lineHeight:1.5, marginBottom:10 }}>{card.desc}</div>}
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <div>
               <div style={{ fontSize:"0.65rem", color:"rgba(255,255,255,.4)", textTransform:"uppercase", letterSpacing:"0.05em" }}>A partir de</div>
-              <div style={{ fontFamily:"'Fraunces',serif", fontSize:"1.6rem", fontWeight:900, color:"#f5c518", lineHeight:1 }}>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:"1.25rem", fontWeight:900, color:"#f5c518", lineHeight:1 }}>
                 R$ {card.preco.toFixed(2).replace(".",",")}
               </div>
             </div>
@@ -650,6 +818,7 @@ function MenuItemCard({ card, isCurrent }: { card: MenuCard; isCurrent: boolean 
           </div>
         </motion.div>
       </div>
+      )}
     </div>
   );
 }
@@ -764,15 +933,62 @@ const CARD_LABEL: Record<FeedItem["_type"], { icon: string; text: string; color:
 // ═══════════════════════════════════════════════════════════════
 export default function NexfoodyFeedHome() {
   const { user, userData } = useAuth();
+  const { tenantConfig } = useTenant();
   const navigate = useNavigate();
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [lojas, setLojas] = useState<LojaMeta[]>([]);
+  const [produtosLoja, setProdutosLoja] = useState<Record<string, Array<{ nome: string }>>>({});
   const [categoriaAtiva, setCategoriaAtiva] = useState("todos");
   const [postAtual, setPostAtual] = useState(0);
   const [chatNaoLido, setChatNaoLido] = useState(0);
+  const [robotTooltip, setRobotTooltip] = useState(false);
+  const robotHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sheetCategoria, setSheetCategoria] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filtroFabOpen, setFiltroFabOpen] = useState(false);
+  const [notifSent, setNotifSent] = useState(false);
+  const [totalLojasAtivas, setTotalLojasAtivas] = useState(0);
+  const [novosIds, setNovosIds] = useState<Set<string>>(() => {
+    if (!user?.uid) return new Set();
+    try { const s = localStorage.getItem(`novos_${user.uid}`); return s ? new Set(JSON.parse(s)) : new Set(); } catch { return new Set(); }
+  });
+  const [focoTotal, setFocoTotal] = useState(false);
+  const pinchFeedRef = useRef<{ startDist: number; active: boolean } | null>(null);
+  const [buscaLoja, setBuscaLoja] = useState("");
+  const [seguindo, setSeguindo] = useState<Record<string, boolean>>({});
   const [bannerMapa, setBannerMapa] = useState(() => sessionStorage.getItem("banner_mapa_visto") !== "1");
   const [cidadeDetectada, setCidadeDetectada] = useState<string | null>(null);
+  const toast = useToast();
+
+  // Mostrar tooltip logo após fechar o bannerMapa (e só se estiver num card de produto)
+  useEffect(() => {
+    if (bannerMapa) return;
+    const item = itensFiltrados[postAtual];
+    if (!item || item._type !== "menu") return;
+    if (sessionStorage.getItem("robot_tooltip_visto") === "1") return;
+    const t = setTimeout(() => {
+      setRobotTooltip(true);
+      robotHideRef.current = setTimeout(() => {
+        setRobotTooltip(false);
+        sessionStorage.setItem("robot_tooltip_visto", "1");
+      }, 10000);
+    }, 800);
+    return () => { if (t) clearTimeout(t); if (robotHideRef.current) clearTimeout(robotHideRef.current); };
+  }, [bannerMapa, postAtual]);
+
+  // Marcar produto como "não é mais novo" quando o cliente rola até ele
+  useEffect(() => {
+    if (!user?.uid) return;
+    const item = itensFiltrados[postAtual];
+    if (item?._type !== "menu") return;
+    const pid = item.produtoId;
+    if (!pid || !novosIds.has(pid)) return;
+    const novo = new Set(novosIds);
+    novo.delete(pid);
+    setNovosIds(novo);
+    try { localStorage.setItem(`novos_${user.uid}`, JSON.stringify([...novo])); } catch {}
+  }, [postAtual]);
+
   const postRefs = useRef<(HTMLDivElement | null)[]>([]);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const dragStartY = useRef(0);
@@ -797,6 +1013,57 @@ export default function NexfoodyFeedHome() {
       } catch {}
     }, () => {});
   }, []);
+
+  // Carregar lojas + produtos quando o sheet abre (uma única vez, sem race conditions)
+  useEffect(() => {
+    if (sheetCategoria !== "todos") return;
+    let cancelled = false;
+
+    getDocs(query(collection(db, "lojas"), limit(50))).then(async snap => {
+      if (cancelled) return;
+      const listaLojas = snap.docs.map(d => ({ tenantId: d.id, ...d.data() } as LojaMeta));
+      if (listaLojas.length > 0) { setLojas(listaLojas); setTotalLojasAtivas(listaLojas.length); }
+
+      // Carrega produtos para cada loja em paralelo
+      const prods: Record<string, Array<{ nome: string }>> = {};
+      await Promise.all(listaLojas.map(async (loja) => {
+        if (cancelled) return;
+        try {
+          const ps = await getDocs(collection(db, `tenants/${loja.tenantId}/produtos`));
+          prods[loja.tenantId] = ps.docs.map(p => ({ nome: p.data().nome || "" }));
+        } catch {
+          prods[loja.tenantId] = [];
+        }
+      }));
+      if (!cancelled) setProdutosLoja(prods);
+    }).catch(() => {});
+
+    return () => { cancelled = true; };
+  }, [sheetCategoria]);
+
+  // Carregar Following do usuário logado
+  useEffect(() => {
+    if (!user?.uid) return;
+    const saved = JSON.parse(localStorage.getItem(`nexfoody_seguindo_${user.uid}`) || "{}");
+    setSeguindo(saved);
+  }, [user?.uid]);
+
+  // Seguir/deixar de seguir uma loja (localStorage + Firestore)
+  const handleSeguir = async (lojaSlug: string) => {
+    if (!user?.uid) { navigate("/nexfoody/login"); return; }
+    const jaSegue = !!seguindo[lojaSlug];
+    const novo = { ...seguindo, [lojaSlug]: !jaSegue };
+    setSeguindo(novo);
+    localStorage.setItem(`nexfoody_seguindo_${user.uid}`, JSON.stringify(novo));
+    try {
+      const ref = doc(db, `tenants/${lojaSlug}/seguidores`, user.uid);
+      if (jaSegue) {
+        await deleteDoc(ref);
+      } else {
+        await setDoc(ref, { userId: user.uid, desde: serverTimestamp() });
+      }
+    } catch {}
+  };
 
   // Contagem de mensagens não-lidas
   useEffect(() => {
@@ -852,6 +1119,18 @@ export default function NexfoodyFeedHome() {
         }
       }).catch(() => {});
 
+      // Logo da loja (buscada diretamente do Firestore)
+      let logoUrl: string | null = null;
+      try {
+        const logoSnap = await getDoc(doc(db, "tenants/acaipurogosto/config/loja"));
+        if (logoSnap.exists()) {
+          const cfg = logoSnap.data();
+          if (cfg.exibirLogoFeed !== false && (cfg.logoFeed || cfg.logoUrl)) {
+            logoUrl = cfg.logoFeed || cfg.logoUrl;
+          }
+        }
+      } catch {}
+
       // Buscar posts oficiais da loja
       let storePosts: StorePost[] = [];
       try {
@@ -860,7 +1139,7 @@ export default function NexfoodyFeedHome() {
           const data = d.data();
           const cor = data.tipo==="promo"?"#f5c518":data.tipo==="novidade"?"#22c55e":"#60a5fa";
           const glow = data.tipo==="promo"?"rgba(245,197,24,.3)":data.tipo==="novidade"?"rgba(34,197,94,.3)":"rgba(96,165,250,.3)";
-          return { _type:"store" as const, id:d.id, tipo:data.tipo||"aviso", texto:data.texto||"", foto:data.foto||null, lojaNome:"Açaí Puro Gosto", lojaSlug:"acaipurogosto", lojaEmoji:"🍧", lojaColor:cor, lojaGlow:glow, _sortTs:data.createdAt?.toDate?.()?.getTime?.()??Date.now() };
+          return { _type:"store" as const, id:d.id, tipo:data.tipo||"aviso", texto:data.texto||"", foto:data.foto||null, lojaNome:"Açaí Puro Gosto", lojaSlug:"acaipurogosto", lojaEmoji:"🍧", lojaLogo:logoUrl, lojaColor:cor, lojaGlow:glow, lojaAvaliacao:4.9, _sortTs:data.createdAt?.toDate?.()?.getTime?.()??Date.now() };
         });
       } catch {}
 
@@ -872,7 +1151,7 @@ export default function NexfoodyFeedHome() {
           const p = d.data();
           const bgs = ["linear-gradient(160deg,#2e0a3a,#7c3aed 45%,#9333ea)","linear-gradient(160deg,#0a1628,#1e3a8a 45%,#3b82f6)","linear-gradient(160deg,#2d0030,#9d174d 45%,#ec4899)"];
           const emojis = ["🍓","🫐","🥭","🍇","🍒","🌴"];
-          return { _type:"menu" as const, id:d.id, produtoId:d.id, nome:p.nome||"Produto", desc:p.desc||p.descricao||"", preco:Number(p.preco)||0, foto:p.foto||null, emoji:p.emoji||emojis[i%emojis.length], bgGradient:bgs[i%bgs.length], lojaNome:"Açaí Puro Gosto", lojaSlug:"acaipurogosto", lojaEmoji:"🍧", vendidosSemana:Math.floor(40+Math.random()*120), _sortTs:Date.now()-i*20*60000 };
+          return { _type:"menu" as const, id:d.id, produtoId:d.id, nome:p.nome||"Produto", desc:p.desc||p.descricao||"", preco:Number(p.preco)||0, foto:p.foto||null, emoji:p.emoji||emojis[i%emojis.length], bgGradient:bgs[i%bgs.length], lojaNome:"Açaí Puro Gosto", lojaSlug:"acaipurogosto", lojaEmoji:"🍧", lojaLogo:logoUrl, avaliacao:4.9, vendidosSemana:Math.floor(40+Math.random()*120), _sortTs:Date.now()-i*20*60000 };
         });
       } catch {}
 
@@ -913,10 +1192,21 @@ export default function NexfoodyFeedHome() {
         ? lojas.filter(l => {
             const cat = (l.categoria || "").toLowerCase();
             const nome = (l.nome || "").toLowerCase();
-            return CAT_KEYWORDS[sheetCategoria].some(k => cat.includes(k) || nome.includes(k));
+            const prods = produtosLoja[l.tenantId] || [];
+            const matchBusca = !buscaLoja || nome.startsWith(buscaLoja.toLowerCase()) || nome.includes(buscaLoja.toLowerCase()) ||
+              prods.some((p: any) => (p.nome || "").toLowerCase().includes(buscaLoja.toLowerCase()));
+            return matchBusca && CAT_KEYWORDS[sheetCategoria].some(k => cat.includes(k) || nome.includes(k));
           })
-        // "todos" no sheet = apenas lojas de comida
-        : lojas.filter(l => !isNaoComida(l.categoria || ""))
+        // "todos" no sheet = TODAS as lojas, busca por nome ou produto
+        : lojas.filter(l => {
+            const nome = (l.nome || "").toLowerCase();
+            const cat = (l.categoria || "").toLowerCase();
+            const prods = produtosLoja[l.tenantId] || [];
+            if (!buscaLoja) return !isNaoComida(cat);
+            return nome.startsWith(buscaLoja.toLowerCase()) ||
+                   nome.includes(buscaLoja.toLowerCase()) ||
+                   prods.some((p: any) => (p.nome || "").toLowerCase().includes(buscaLoja.toLowerCase()));
+          })
       ).sort((a, b) => ((b as any).avaliacao || 0) - ((a as any).avaliacao || 0))
     : [];
 
@@ -946,17 +1236,36 @@ export default function NexfoodyFeedHome() {
     const cat = itemCategoria(item);
 
     // "Todos" = somente comida (não-comida fica na página /lojas)
-    if (categoriaAtiva === "todos") return !isNaoComida(cat);
+    if (categoriaAtiva === "todos" && !isNaoComida(cat)) {
+      // filtro de busca
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const t = item._type === "customer" ? `${item.lojaNome} ${item.legenda} ${item.produtoNome} ${item.lojaCategoria}` :
+                  item._type === "store"    ? `${item.lojaNome} ${item.texto}` :
+                  item._type === "menu"     ? `${item.lojaNome} ${item.nome} ${item.desc || ""}` :
+                  `${item.lojaMaisFrequente}`;
+        return t.toLowerCase().includes(q);
+      }
+      return true;
+    }
 
     // Filtro de subcategoria de comida
     const t = item._type === "customer" ? `${item.lojaNome} ${item.legenda} ${item.produtoNome} ${item.lojaCategoria}` :
               item._type === "store"    ? `${item.lojaNome} ${item.texto}` :
-              item._type === "menu"     ? `${item.lojaNome} ${item.nome}` :
+              item._type === "menu"     ? `${item.lojaNome} ${item.nome} ${item.desc || ""}` :
               `${item.lojaMaisFrequente}`;
-    return t.toLowerCase().includes(categoriaAtiva.toLowerCase()) && !isNaoComida(cat);
+    const matchCat = t.toLowerCase().includes(categoriaAtiva.toLowerCase()) && !isNaoComida(cat);
+    if (!matchCat) return false;
+    // filtro de busca combinado com categoria
+    if (searchQuery.trim()) {
+      return t.toLowerCase().includes(searchQuery.toLowerCase());
+    }
+    return true;
   });
 
   const labelAtual = itensFiltrados[postAtual] ? CARD_LABEL[itensFiltrados[postAtual]._type] : null;
+  const isOnProduct = itensFiltrados[postAtual]?._type === "menu";
+  const currentItem = itensFiltrados[postAtual];
 
   return (
     <div style={{ background:"#080412", height:"100dvh", display:"flex", flexDirection:"column", fontFamily:"'Outfit',sans-serif", overflow:"hidden", color:"#fff" }}>
@@ -975,29 +1284,50 @@ export default function NexfoodyFeedHome() {
 
       {/* HEADER */}
       <div style={{ flexShrink:0, height:56, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 16px", background:"rgba(8,4,18,.95)", backdropFilter:"blur(12px)", borderBottom:"1px solid rgba(255,255,255,.07)", zIndex:100 }}>
-        <div style={{ fontFamily:"'Fraunces',serif", fontSize:"1.25rem", fontWeight:900, color:"#f5c518" }}>🍓 NexFoody</div>
-        <button onClick={() => navigate("/mapa")} style={{ display:"flex", alignItems:"center", gap:5, background:"rgba(255,255,255,.06)", border:"1px solid rgba(255,255,255,.1)", borderRadius:20, padding:"6px 12px", color:"#fff", cursor:"pointer", fontSize:"0.78rem", fontWeight:600 }}>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:"1.25rem", fontWeight:900, background:"linear-gradient(135deg, #7c3aed, #a855f7)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>NexFoody</div>
+        <button onClick={() => navigate("/mapa")} style={{ display:"flex", alignItems:"center", gap:5, background:"rgba(255,255,255,.06)", border:"1px solid rgba(255,255,255,.1)", borderRadius:20, padding:"6px 12px", color:"#fff", cursor:"pointer", fontSize:"0.78rem", fontWeight:600, flexShrink:0 }}>
           📍 {cidadeDetectada || "Localizar..."} <span style={{ color:"rgba(255,255,255,.4)", fontSize:"0.7rem" }}>▼</span>
         </button>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           {/* Botão minha loja / criar loja */}
-          {userData?.lojistaOf
-            ? <Link to={`/loja/${userData.lojistaOf}`} style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(245,197,24,.12)", border:"1px solid rgba(245,197,24,.4)", borderRadius:20, padding:"6px 12px", textDecoration:"none" }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f5c518" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                <span style={{ fontSize:"0.72rem", fontWeight:800, color:"#f5c518" }}>Minha loja</span>
+          {userData?.lojistaOf ? (
+            <Link to={`/loja/${userData.lojistaOf}`} style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(124,58,237,.15)", border:"1px solid rgba(124,58,237,.4)", borderRadius:20, padding:"6px 12px", textDecoration:"none", flexShrink:0 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span style={{ fontSize:"0.72rem", fontWeight:800, color:"#a855f7" }}>Minha loja</span>
               </Link>
-            : <Link to="/lojista/cadastro" style={{ display:"flex", alignItems:"center", gap:5, background:"rgba(245,197,24,.1)", border:"1px solid rgba(245,197,24,.3)", borderRadius:20, padding:"5px 10px", textDecoration:"none" }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f5c518" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                <span style={{ fontSize:"0.68rem", fontWeight:800, color:"#f5c518", whiteSpace:"nowrap" }}>Criar loja grátis</span>
+          ) : (
+            <Link to="/lojista/cadastro" style={{ display:"flex", alignItems:"center", gap:8, background:"linear-gradient(135deg, #7c3aed, #a855f7)", border:"none", borderRadius:20, padding:"7px 14px", textDecoration:"none", boxShadow:"0 4px 16px rgba(124,58,237,.4)", flexShrink:0 }}>
+                <span style={{ fontSize:"0.72rem", fontWeight:800, color:"#fff", whiteSpace:"nowrap" }}>Criar loja grátis</span>
               </Link>
-          }
-          <button style={{ background:"none", border:"none", cursor:"pointer", position:"relative", color:"#fff", fontSize:"1.2rem" }}>
-            🔔<span style={{ position:"absolute", top:-2, right:-2, width:8, height:8, borderRadius:"50%", background:"#ef4444" }} />
-          </button>
-          {user
-            ? <button onClick={() => navigate("/meu-perfil")} style={{ width:32, height:32, borderRadius:"50%", background:avatarBg(userData?.nome||"U"), border:"2px solid rgba(245,197,24,.5)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontWeight:800, fontSize:"0.9rem", color:"#fff" }}>{userData?.nome?.[0]||"U"}</button>
-            : <Link to="/nexfoody/welcome" style={{ background:"linear-gradient(135deg,#f5c518,#e6a817)", borderRadius:20, padding:"6px 14px", fontWeight:800, fontSize:"0.75rem", color:"#0a0414", textDecoration:"none" }}>Entrar</Link>
-          }
+          )}
+          {user ? (
+            <button onClick={() => navigate("/meu-perfil")} style={{ width:32, height:32, borderRadius:"50%", background:avatarBg(userData?.nome||"U"), border:"2px solid rgba(124,58,237,.5)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontWeight:800, fontSize:"0.9rem", color:"#fff", overflow:"hidden", flexShrink:0 }}>
+              {user.photoURL || userData?.photoURL
+                ? <img src={user.photoURL || userData?.photoURL || ""} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                : (userData?.nome?.[0] || "U")
+              }
+            </button>
+          ) : (
+            <Link to="/nexfoody/welcome" style={{ background:"linear-gradient(135deg,#f5c518,#e6a817)", borderRadius:20, padding:"6px 14px", fontWeight:800, fontSize:"0.75rem", color:"#0a0414", textDecoration:"none" }}>Entrar</Link>
+          )}
+        </div>
+      </div>
+
+      {/* BUSCA */}
+      <div style={{ flexShrink:0, padding:"8px 16px 6px", background:"rgba(8,4,18,.95)", borderBottom:"1px solid rgba(255,255,255,.05)" }}>
+        <div style={{ position:"relative", maxWidth:600, margin:"0 auto" }}>
+          <input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Buscar lojas, produtos..."
+            style={{ width:"100%", background:"rgba(255,255,255,.08)", border:"1px solid rgba(255,255,255,.12)", borderRadius:24, padding:"10px 40px 10px 40px", color:"#fff", fontSize:"0.88rem", fontFamily:"'Outfit',sans-serif", fontWeight:600, outline:"none", transition:"all .2s", boxShadow:"0 2px 12px rgba(0,0,0,.2)" }}
+            onFocus={e => e.target.style.borderColor = "rgba(245,197,24,.5)"}
+            onBlur={e => e.target.style.borderColor = "rgba(255,255,255,.12)"}
+          />
+          <svg style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", color:"rgba(255,255,255,.4)", cursor:"pointer", fontSize:"1rem", lineHeight:1, padding:0 }}>✕</button>
+          )}
         </div>
       </div>
 
@@ -1016,13 +1346,49 @@ export default function NexfoodyFeedHome() {
         {/* FEED */}
         <div style={{ flex:1, position:"relative", overflow:"hidden" }}>
           {itensFiltrados.length === 0
-            ? <div style={{ height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12, color:"rgba(255,255,255,.3)" }}><div style={{ fontSize:"3rem" }}>📭</div><div>Nenhum post nessa categoria</div></div>
-            : <div style={{ height:"100%", overflowY:"scroll", scrollSnapType:"y mandatory", scrollbarWidth:"none" }}>
+            ? (() => {
+              const buscaAtiva = searchQuery.trim() || (categoriaAtiva !== "todos" ? CATEGORIAS.find(c => c.id === categoriaAtiva)?.label : "");
+              const tipo = totalLojasAtivas === 0
+                ? "zero"
+                : buscaAtiva
+                ? "semResult"
+                : "semPosts";
+              return (
+                <div style={{ height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:0, color:"rgba(255,255,255,.85)", padding:"0 32px", textAlign:"center" }}>
+                  {tipo === "zero" && <><div style={{ fontSize:"4rem", marginBottom:16 }}>📍</div><div style={{ fontFamily:"Fraunces,serif", fontSize:"1.35rem", fontWeight:900, marginBottom:8 }}>Não encontrou a loja que procura?</div><div style={{ fontSize:"0.85rem", color:"rgba(255,255,255,.5)", maxWidth:280, lineHeight:1.5, marginBottom:24 }}>Clique no mapa e convide a loja que você quer para a NexFoody! 🚀</div></>}
+                  {tipo === "semResult" && <><div style={{ fontSize:"4rem", marginBottom:16 }}>🔍</div><div style={{ fontFamily:"Fraunces,serif", fontSize:"1.4rem", fontWeight:900, marginBottom:8 }}>Não encontramos "{buscaAtiva}"</div><div style={{ fontSize:"0.85rem", color:"rgba(255,255,255,.5)", maxWidth:260, lineHeight:1.5, marginBottom:24 }}>Ainda não temos essa opção por aqui. Que tal explorar o que já está disponível?</div></>}
+                  {tipo === "semPosts" && <><div style={{ fontSize:"4rem", marginBottom:16 }}>📸</div><div style={{ fontFamily:"Fraunces,serif", fontSize:"1.4rem", fontWeight:900, marginBottom:8 }}>Nada aqui ainda</div><div style={{ fontSize:"0.85rem", color:"rgba(255,255,255,.5)", maxWidth:260, lineHeight:1.5, marginBottom:24 }}>Ainda não temos postagens nessa categoria. Em breve novidades!</div></>}
+                  {tipo === "zero" && !notifSent ? (
+                    <button onClick={() => { if (!user) { navigate("/nexfoody/login"); return; } setNotifSent(true); toast("Te avisamos quando abrir! 🚀", "success"); }} style={{ background:"rgba(245,197,24,.12)", border:"1px solid rgba(245,197,24,.35)", borderRadius:20, padding:"10px 20px", color:"#f5c518", fontWeight:700, fontSize:"0.8rem", cursor:"pointer", marginBottom:12 }}>🔔 Notifique-me quando ela estiver aqui</button>
+                  ) : tipo === "zero" ? (
+                    <div style={{ color:"#34d399", fontSize:"0.8rem", fontWeight:700, marginBottom:12 }}>✅ Você será avisado!</div>
+                  ) : null}
+                  <button onClick={() => navigate("/mapa")} style={{ background:"rgba(255,255,255,.06)", border:"1px solid rgba(255,255,255,.15)", borderRadius:16, padding:"8px 18px", color:"rgba(255,255,255,.7)", fontWeight:600, fontSize:"0.78rem", cursor:"pointer" }}>🔍 Ver no mapa</button>
+                </div>
+              );
+            })()
+            : <div style={{ height:"100%", overflowY:"scroll", scrollSnapType:"y mandatory", scrollbarWidth:"none" }}
+              onTouchMove={e => {
+                const t = e.touches;
+                if (t.length !== 2) return;
+                const dx = t[0].clientX - t[1].clientX;
+                const dy = t[0].clientY - t[1].clientY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (!pinchFeedRef.current?.active) {
+                  pinchFeedRef.current = { startDist: dist, active: true };
+                } else {
+                  const scale = dist / (pinchFeedRef.current.startDist || dist);
+                  const currentItem = itensFiltrados[postAtual];
+                  if (currentItem?._type === "menu") setFocoTotal(scale > 1.3);
+                }
+              }}
+              onTouchEnd={() => { pinchFeedRef.current = null; setFocoTotal(false); }}
+            >
                 {itensFiltrados.map((item, idx) => (
                   <div key={item.id} ref={el => { postRefs.current[idx] = el; }} style={{ height:"calc(100% - 54px)", scrollSnapAlign:"start", position:"relative", flexShrink:0 }}>
-                    {item._type === "customer"  && <CustomerPostCard  post={item} isCurrent={postAtual===idx} userId={user?.uid} />}
-                    {item._type === "store"     && <StorePostCard     post={item} isCurrent={postAtual===idx} />}
-                    {item._type === "menu"      && <MenuItemCard      card={item} isCurrent={postAtual===idx} />}
+                    {item._type === "customer"  && <CustomerPostCard  post={item} isCurrent={postAtual===idx} userId={user?.uid} seguindo={!!seguindo[item.lojaSlug||""]} onSeguir={() => item.lojaSlug && handleSeguir(item.lojaSlug)} />}
+                    {item._type === "store"     && <StorePostCard     post={item} isCurrent={postAtual===idx} seguindo={!!seguindo[item.lojaSlug||""]} onSeguir={() => item.lojaSlug && handleSeguir(item.lojaSlug)} />}
+                    {item._type === "menu"      && <MenuItemCard      card={item} isCurrent={postAtual===idx} seguindo={!!seguindo[item.lojaSlug||""]} onSeguir={() => item.lojaSlug && handleSeguir(item.lojaSlug)} focoTotal={focoTotal} novosIds={novosIds} />}
                     {item._type === "topbuyer"  && <TopBuyerCard      card={item} isCurrent={postAtual===idx} />}
                   </div>
                 ))}
@@ -1130,7 +1496,7 @@ export default function NexfoodyFeedHome() {
                 <div style={{ fontSize:"0.72rem", color:"#f5c518", fontWeight:800 }}>{f.pontosSemana.toLocaleString("pt-BR")} pts</div>
               </div>
             ))}
-            <Link to="/ranking" style={{ fontSize:"0.72rem", color:"#a855f7", textDecoration:"none", fontWeight:600 }}>Ver ranking completo →</Link>
+            <Link to="/rankings" style={{ fontSize:"0.72rem", color:"#a855f7", textDecoration:"none", fontWeight:600 }}>Ver rankings das lojas →</Link>
           </div>
         </div>
       </div>
@@ -1163,6 +1529,12 @@ export default function NexfoodyFeedHome() {
           Perfil
         </Link>
 
+        {/* Buscar */}
+        <button onClick={() => setSheetCategoria("todos")} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2, background:"none", border:"none", cursor:"pointer", color:"rgba(255,255,255,.35)", fontSize:"0.55rem", fontWeight:700 }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Buscar
+        </button>
+
         {/* Chat com badge */}
         <Link to="/chat" style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2, textDecoration:"none", color:"rgba(255,255,255,.35)", fontSize:"0.55rem", fontWeight:700, position:"relative" }}>
           <span style={{ position:"relative", display:"inline-flex", alignItems:"center", justifyContent:"center" }}>
@@ -1178,12 +1550,58 @@ export default function NexfoodyFeedHome() {
 
       </div>
 
+      {/* FAB Filtro */}
+      <AnimatePresence>
+        {filtroFabOpen && (
+          <motion.div
+            initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:20 }}
+            style={{ position:"fixed", bottom:70, left:16, right:16, zIndex:200, background:"rgba(12,4,26,.98)", backdropFilter:"blur(20px)", border:"1px solid rgba(245,197,24,.25)", borderRadius:20, padding:"20px 16px 16px", boxShadow:"0 8px 32px rgba(0,0,0,.6)" }}
+          >
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:"1rem", fontWeight:900, color:"#f5c518" }}>✨ Filtrar feed</div>
+              <button onClick={() => setFiltroFabOpen(false)} style={{ background:"none", border:"none", color:"rgba(255,255,255,.4)", cursor:"pointer", fontSize:"1rem", lineHeight:1 }}>✕</button>
+            </div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+              {CATEGORIAS.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => { setCategoriaAtiva(cat.id); setFiltroFabOpen(false); }}
+                  style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:20, border:`1px solid ${categoriaAtiva===cat.id?"rgba(245,197,24,.6)":"rgba(255,255,255,.15)"}`, background:categoriaAtiva===cat.id?"rgba(245,197,24,.15)":"rgba(255,255,255,.05)", color:categoriaAtiva===cat.id?"#f5c518":"rgba(255,255,255,.7)", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:700, fontSize:"0.82rem", transition:"all .2s" }}
+                >
+                  {cat.icon} {cat.label}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* FAB Filtro — só ícone */}
+      <motion.button whileTap={{ scale:0.92 }}
+        onClick={() => setFiltroFabOpen(p => !p)}
+        style={{
+          position:"fixed", bottom:195, left:16, zIndex:200,
+          width:42, height:42, borderRadius:"50%",
+          background:"rgba(255,255,255,.08)", backdropFilter:"blur(12px)",
+          WebkitBackdropFilter:"blur(12px)",
+          border:"1.5px solid rgba(255,255,255,.2)",
+          cursor:"pointer",
+          boxShadow:"0 4px 20px rgba(0,0,0,.25)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+        }}
+      >
+        {filtroFabOpen
+          ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        }
+      </motion.button>
+
       {/* ── BOTTOM SHEET: LOJAS POR CATEGORIA ────────────────── */}
       {sheetCategoria !== null && (
         <>
           {/* Backdrop */}
           <div
-            onClick={() => setSheetCategoria(null)}
+            onClick={() => { setSheetCategoria(null); setBuscaLoja(""); }}
             style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.55)", backdropFilter:"blur(3px)", zIndex:200, animation:"sheetFadeIn .25s ease" }}
           />
           {/* Sheet */}
@@ -1195,12 +1613,33 @@ export default function NexfoodyFeedHome() {
             onTouchEnd={onDragEnd}
           >
             {/* Handle de arraste */}
-            <div style={{ display:"flex", justifyContent:"center", padding:"12px 0 4px", cursor:"grab" }}>
+            <div style={{ display:"flex", justifyContent:"center", padding:"12px 0 0", cursor:"grab" }}>
               <div style={{ width:36, height:4, borderRadius:2, background:"rgba(255,255,255,.2)" }} />
             </div>
 
+            {/* Busca inteligente — no topo do sheet */}
+            <div style={{ padding:"10px 16px 8px", flexShrink:0 }}>
+              <div style={{ position:"relative" }}>
+                <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", fontSize:"0.9rem", pointerEvents:"none" }}>🔍</span>
+                <input
+                  value={buscaLoja}
+                  onChange={e => setBuscaLoja(e.target.value)}
+                  placeholder="Buscar loja ou produto..."
+                  style={{ width:"100%", background:"rgba(255,255,255,.07)", border:"1px solid rgba(255,255,255,.12)", borderRadius:50, padding:"9px 38px 9px 38px", color:"#fff", fontFamily:"'Outfit',sans-serif", fontSize:"0.88rem", outline:"none" }}
+                />
+                {buscaLoja && (
+                  <button onClick={() => setBuscaLoja("")} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", color:"rgba(255,255,255,.4)", cursor:"pointer", fontSize:"0.85rem", padding:0 }}>✕</button>
+                )}
+              </div>
+              {buscaLoja && (
+                <div style={{ fontSize:"0.65rem", color:"rgba(255,255,255,.35)", marginTop:5, padding:"0 2px" }}>
+                  Mostrando lojas que vendem "{buscaLoja}"
+                </div>
+              )}
+            </div>
+
             {/* Título */}
-            <div style={{ padding:"8px 20px 14px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0, borderBottom:"1px solid rgba(255,255,255,.06)" }}>
+            <div style={{ padding:"4px 20px 10px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0, borderBottom:"1px solid rgba(255,255,255,.06)" }}>
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                 <div style={{ width:44, height:44, borderRadius:14, background:"rgba(245,197,24,.12)", border:"1px solid rgba(245,197,24,.2)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.5rem" }}>
                   {catInfo?.icon}
@@ -1266,6 +1705,49 @@ export default function NexfoodyFeedHome() {
           `}</style>
         </>
       )}
+
+      {/* ── BOTÃO PEDIR COM IA FLUTUANTE ─────────────────────────── */}
+      <div style={{ position:"fixed", bottom:195, right:16, zIndex:50, display:"flex", flexDirection:"column", alignItems:"flex-end", gap:8 }}>
+        {/* Tooltip — só aparece quando está num card de produto */}
+        {robotTooltip && itensFiltrados[postAtual]?._type === "menu" && (
+          <motion.div initial={{ opacity:0, scale:.9 }} animate={{ opacity:1, scale:1 }} exit={{ opacity:0, scale:.9 }}
+            style={{ background:"linear-gradient(135deg,rgba(20,10,40,.98),rgba(40,15,80,.98))", border:"1px solid rgba(245,197,24,.4)", borderRadius:16, padding:"12px 16px", maxWidth:210, boxShadow:"0 8px 32px rgba(0,0,0,.5), 0 0 20px rgba(245,197,24,.1)", position:"relative" }}>
+              {/* X pra fechar */}
+              <button onClick={() => { if (robotHideRef.current) clearTimeout(robotHideRef.current); setRobotTooltip(false); sessionStorage.setItem("robot_tooltip_visto", "1"); }}
+                style={{ position:"absolute", top:6, right:8, background:"none", border:"none", color:"rgba(255,255,255,.35)", cursor:"pointer", fontSize:"0.8rem", lineHeight:1, padding:0 }}>✕</button>
+              {/* Seta apontando pro botão */}
+              <div style={{ position:"absolute", bottom:-7, right:20, width:14, height:14, background:"rgba(20,10,40,.98)", borderRight:"1px solid rgba(245,197,24,.3)", borderBottom:"1px solid rgba(245,197,24,.3)", transform:"rotate(45deg)" }} />
+              <div style={{ fontSize:"0.72rem", fontWeight:700, color:"#f5c518", marginBottom:4 }}>🤖 Ei, posso te ajudar!</div>
+              <div style={{ fontSize:"0.68rem", color:"rgba(255,255,255,.75)", lineHeight:1.45 }}>Me diz o que você quer e faço seu pedido em 1 minuto!</div>
+            </motion.div>
+        )}
+        <motion.button whileTap={{ scale:0.95 }}
+          onClick={() => {
+            if (!user) { navigate("/nexfoody/login"); return; }
+            if (robotHideRef.current) clearTimeout(robotHideRef.current);
+            setRobotTooltip(false);
+            sessionStorage.setItem("robot_tooltip_visto", "1");
+            // Vai pro chat da loja do produto atual
+            const item = itensFiltrados[postAtual];
+            const slug = item?._type === "menu" ? `?loja=${item.lojaSlug}` : "";
+            navigate(`/chat${slug}`);
+          }}
+          style={{
+            display:"flex", alignItems:"center", gap:6,
+            background:"rgba(255,255,255,.08)",
+            backdropFilter:"blur(12px)",
+            WebkitBackdropFilter:"blur(12px)",
+            border:"1.5px solid rgba(255,255,255,.2)",
+            borderRadius:24,
+            padding:"8px 14px",
+            cursor:"pointer",
+            boxShadow:"0 4px 20px rgba(0,0,0,.25)",
+          }}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="12" rx="3"/><path d="M12 8V5"/><path d="M9 5h6"/><circle cx="9" cy="13" r="1.5" fill="rgba(255,255,255,.9)"/><circle cx="15" cy="13" r="1.5" fill="rgba(255,255,255,.9)"/><path d="M9 17h6"/></svg>
+          <span style={{ fontSize:"0.78rem", fontWeight:800, color:"#fff", whiteSpace:"nowrap" }}>Pedir</span>
+        </motion.button>
+      </div>
     </div>
   );
 }

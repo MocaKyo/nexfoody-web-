@@ -73,7 +73,7 @@ const INOVACOES = [
     cor: "#818cf8",
     glow: "rgba(129,140,248,0.3)",
     titulo: "Gerente IA 24/7",
-    desc: "Robô inteligente que recebe pedidos pelo chat, responde dúvidas, sugere pratos e nunca deixa um cliente esperando.",
+    desc: "Robô inteligente e humanizado que chama o cliente pelo nome, recebe pedidos pelo chat, coloca no carrinho, conhece o endereço, histórico do cliente, responde dúvidas, sugere pratos e nunca deixa um cliente esperando. Ele sabe tudo da loja e dos pedidos do cliente",
     badge: "Powered by IA",
   },
   {
@@ -162,6 +162,7 @@ const PLANOS = [
       { ok: true,  txt: "Feed & Stories da loja" },
       { ok: true,  txt: "Ranking + fidelidade" },
       { ok: true,  txt: "Gestão de entregadores" },
+      { ok: true,  txt: "Caixa Flutuante" },
       { ok: false, txt: "Chat IA (tipo WhatsApp)" },
       { ok: false, txt: "Gerente IA 24/7" },
       { ok: false, txt: "Analytics avançado com IA" },
