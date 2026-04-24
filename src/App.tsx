@@ -1,4 +1,9 @@
-// src/App.tsx — NexFoody platform
+// src/App.tsx — Zuppei Platform
+//
+// © 2026 Zuppei Tecnologia LTDA — Todos os direitos reservados.
+// Zuppei ⚡ Pede fácil. Recebe rápido.
+// Propriedade intelectual protegida pela Lei 9.610/98 e registro de software no INPI.
+// Reprodução total ou parcial sem autorização expressa é proibida.
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -84,15 +89,16 @@ function hexEscuro(hex: string): boolean {
 // Theme manager (inside TenantProvider) — aplica tema global + CSS variables da loja
 function ThemeManager() {
   const { tenantConfig } = useTenant();
-  const { resolvedTheme } = useTheme();
+  const { resolvedTheme, theme } = useTheme();
   useEffect(() => {
     const v = { ...VISUAL_PADRAO, ...(tenantConfig?.visual || {}) };
     const html = document.documentElement;
 
-    // Base theme comes from global ThemeContext (dark/light/system)
-    // Tenant's visual override (temaBase) can still force a mode
+    // Base theme: if user explicitly chose dark/light (not "system"), use that.
+    // Tenant's temaBase only overrides when user is in "system" mode.
     const tenantTema = v.temaBase as string | undefined;
-    const baseTema = tenantTema || resolvedTheme; // resolvedTheme already handles "system"
+    const userExplicitlySet = theme !== "system";
+    const baseTema = userExplicitlySet ? resolvedTheme : (tenantTema || resolvedTheme);
     const isClaro = baseTema === "light" || baseTema === "white";
 
     // Define data-tema para o CSS base (dark/light)
@@ -129,6 +135,8 @@ function ThemeManager() {
 
     // Texto do banner — sempre contrasta com o fundo do banner
     const bannerTexto = hexEscuro(v.bannerCorA) ? "#ffffff" : "#111111";
+    // Texto do header — contrasta com corHeader (mesma lógica do banner)
+    const headerTexto = hexEscuro(v.corHeader) ? "#ffffff" : "#111111";
     // Texto dos botões primários — contrasta com corPrimaria
     const btnTexto = hexEscuro(v.corPrimaria) ? "#ffffff" : "#111111";
 
@@ -136,12 +144,20 @@ function ThemeManager() {
     html.style.setProperty("--loja-cor-primaria",   v.corPrimaria);
     html.style.setProperty("--loja-cor-acento",     v.corAcento);
     html.style.setProperty("--loja-header-bg",      v.corHeader);
+    html.style.setProperty("--loja-header-texto",  headerTexto);
     html.style.setProperty("--loja-fundo",          bgPuro);
     html.style.setProperty("--loja-banner-bg",      bannerBg);
     html.style.setProperty("--loja-banner-texto",   bannerTexto);
     html.style.setProperty("--loja-btn-texto",      btnTexto);
     html.style.setProperty("--loja-fonte",          `'${v.fonte}', sans-serif`);
     html.style.setProperty("--loja-radius",         v.bordaArredondada ? "16px" : "8px");
+
+    // Botões seguem corPrimaria da loja (não roxo fixo)
+    html.style.setProperty("--loja-btn-bg",    `linear-gradient(135deg, ${v.corPrimaria}, ${v.corAcento})`);
+    const shadowColor = v.corPrimaria + "55";
+    html.style.setProperty("--loja-btn-shadow", `0 6px 20px ${shadowColor}`);
+    // Ícones de ação seguem corPrimaria (favorito, curtida, etc)
+    html.style.setProperty("--loja-cor-icon",  v.corPrimaria);
 
     // Topbar
     const topBg = isClaro ? `rgba(255,255,255,0.97)` : `rgba(15,5,24,0.92)`;
