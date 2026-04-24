@@ -82,6 +82,19 @@ export default function Cardapio() {
   const isOriginalNexfoody = tenantConfig?.visual?.corPrimaria === "#a855f7";
   const isCatalogo = config?.modoOperacao === "catalogo";
   const { user } = useAuth();
+  // Cor do título: contraste com o header da loja
+  const lojaCorHeader = tenantConfig?.visual?.corHeader || "#1a0a36";
+  const headerTextoCor = (() => {
+    try {
+      const h = lojaCorHeader.replace("#", "");
+      const r = parseInt(h.slice(0, 2), 16) / 255;
+      const g = parseInt(h.slice(2, 4), 16) / 255;
+      const b = parseInt(h.slice(4, 6), 16) / 255;
+      return 0.299 * r + 0.587 * g + 0.114 * b < 0.5 ? "#ffffff" : "var(--loja-cor-primaria)";
+    } catch { return "#ffffff"; }
+  })();
+  // Badge +3k: ouro no NexFoody original, cor da loja nas demais
+  const badgeCor = isOriginalNexfoody ? "#f5c518" : "var(--loja-cor-primaria)";
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -452,7 +465,7 @@ const toggleFavorito = async (produto, e) => {
             <img src={config.logoUrl || LOGO_URL} alt="Logo" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover", border: `2px solid ${isOriginalNexfoody ? "rgba(245,197,24,0.4)" : "var(--loja-cor-primaria)"}`, boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }} />
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ fontFamily: "'Fraunces', serif", fontSize: "1.2rem", fontWeight: 700, color: isOriginalNexfoody ? "#f5c518" : "var(--loja-cor-primaria)", display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ fontFamily: "'Fraunces', serif", fontSize: "1.2rem", fontWeight: 700, color: isOriginalNexfoody ? "#f5c518" : headerTextoCor, display: "flex", alignItems: "center", gap: 6 }}>
                   {config.nomeLoja || "Açaí Puro Gosto"}
                   {(() => {
                     const totalEstrelas = Object.values(mediasAvaliacoes).reduce((acc, m) => acc + m.total, 0);
@@ -484,7 +497,7 @@ const toggleFavorito = async (produto, e) => {
                 )}
                 {(() => {
                   const total = config.pedidosEntregues || 0;
-                  if (total >= 3000) return <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "var(--gold-dim)", border: "1px solid var(--loja-cor-icon)", borderRadius: 20, padding: "1px 7px", fontSize: "0.65rem", fontWeight: 700, color: "var(--loja-cor-primaria)" }}>🥇 +3k</span>;
+                  if (total >= 3000) return <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "var(--gold-dim)", border: `1px solid ${badgeCor}33`, borderRadius: 20, padding: "1px 7px", fontSize: "0.65rem", fontWeight: 700, color: badgeCor }}>🥇 +3k</span>;
                   if (total >= 2000) return <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "rgba(192,192,192,0.1)", border: "1px solid rgba(192,192,192,0.35)", borderRadius: 20, padding: "1px 7px", fontSize: "0.65rem", fontWeight: 700, color: "#c0c0c0" }}>🥈 +2k</span>;
                   if (total >= 1000) return <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "rgba(205,127,50,0.1)", border: "1px solid rgba(205,127,50,0.35)", borderRadius: 20, padding: "1px 7px", fontSize: "0.65rem", fontWeight: 700, color: "#cd7f32" }}>🥉 +1k</span>;
                   return null;
@@ -552,7 +565,7 @@ const toggleFavorito = async (produto, e) => {
             <span style={{ color: "var(--loja-cor-icon)", fontWeight: 700 }}>{pontos} pontos</span>
             <span style={{ color: "rgba(255,255,255,0.45)" }}> disponíveis para resgatar</span>
           </div>
-          <button onClick={() => navigate("/pontos")} style={{ background: "var(--gold-dim)", border: "1px solid var(--loja-cor-icon)", borderRadius: 20, padding: "4px 10px", cursor: "pointer", color: "var(--loja-cor-icon)", fontFamily: "'Outfit', sans-serif", fontSize: "0.7rem", fontWeight: 700 }}>Ver prêmios</button>
+          <button onClick={() => navigate("/pontos")} style={{ background: isOriginalNexfoody ? "rgba(245,197,24,0.12)" : `${badgeCor}20`, border: `1px solid ${badgeCor}44`, borderRadius: 20, padding: "4px 10px", cursor: "pointer", color: badgeCor, fontFamily: "'Outfit', sans-serif", fontSize: "0.7rem", fontWeight: 700 }}>Ver prêmios</button>
         </div>
       )}
 
