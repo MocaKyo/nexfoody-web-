@@ -157,7 +157,7 @@ function ThemeManager() {
     const shadowColor = v.corPrimaria + "55";
     html.style.setProperty("--loja-btn-shadow", `0 6px 20px ${shadowColor}`);
     // Ícones de ação seguem corPrimaria (favorito, curtida, etc)
-    html.style.setProperty("--loja-cor-icon",  v.corPrimaria);
+    html.style.setProperty("--loja-cor-icon",  "#f5c518");
 
     // Topbar
     const topBg = isClaro ? `rgba(255,255,255,0.97)` : `rgba(15,5,24,0.92)`;

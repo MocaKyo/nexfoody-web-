@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { useStore } from "../contexts/StoreContext";
+import { useTenant } from "../contexts/TenantContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../components/Toast";
 import { collection, onSnapshot, doc, setDoc, updateDoc, increment, deleteField, getDoc, getDocs } from "firebase/firestore";
@@ -77,6 +78,8 @@ const SkeletonCard = () => (
 
 export default function Cardapio() {
   const { config, produtos, addToCart, cartCount, pontos } = useStore();
+  const { tenantConfig } = useTenant();
+  const isOriginalNexfoody = tenantConfig?.visual?.corPrimaria === "#a855f7";
   const isCatalogo = config?.modoOperacao === "catalogo";
   const { user } = useAuth();
   const toast = useToast();
@@ -446,10 +449,10 @@ const toggleFavorito = async (produto, e) => {
         )}
         <div style={{ padding: config.imagemCapa ? "0 16px" : "16px 16px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}>
-            <img src={config.logoUrl || LOGO_URL} alt="Logo" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover", border: "2px solid rgba(245,197,24,0.4)", boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }} />
+            <img src={config.logoUrl || LOGO_URL} alt="Logo" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover", border: `2px solid ${isOriginalNexfoody ? "rgba(245,197,24,0.4)" : "var(--loja-cor-primaria)"}`, boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }} />
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ fontFamily: "'Fraunces', serif", fontSize: "1.2rem", fontWeight: 700, color: "#f5c518", display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ fontFamily: "'Fraunces', serif", fontSize: "1.2rem", fontWeight: 700, color: isOriginalNexfoody ? "#f5c518" : "var(--loja-cor-primaria)", display: "flex", alignItems: "center", gap: 6 }}>
                   {config.nomeLoja || "Açaí Puro Gosto"}
                   {(() => {
                     const totalEstrelas = Object.values(mediasAvaliacoes).reduce((acc, m) => acc + m.total, 0);
@@ -458,7 +461,7 @@ const toggleFavorito = async (produto, e) => {
                     const media = (totalEstrelas / totalCount).toFixed(1);
                     const fmtCount = totalCount >= 1000 ? `${(totalCount / 1000).toFixed(1).replace(".", ",")}k` : totalCount;
                     return (
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "rgba(245,197,24,0.12)", border: "1px solid rgba(245,197,24,0.25)", borderRadius: 20, padding: "1px 8px", fontSize: "0.72rem", fontWeight: 700, color: "#f5c518" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "var(--gold-dim)", border: "1px solid var(--loja-cor-icon)", borderRadius: 20, padding: "1px 8px", fontSize: "0.72rem", fontWeight: 700, color: "var(--loja-cor-icon)" }}>
                         ★ {media} <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 500 }}>({fmtCount})</span>
                       </span>
                     );
@@ -628,7 +631,7 @@ const toggleFavorito = async (produto, e) => {
                     {produto.desc && <div style={{ fontSize: "0.7rem", color: "var(--text3)", marginBottom: 6, lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{produto.desc}</div>}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
-                        <span style={{ fontFamily: "'Fraunces', serif", fontSize: "1.05rem", fontWeight: 900, color: "var(--loja-cor-primaria)" }}>R$ {(produto.preco ?? 0).toFixed(2).replace(".", ",")}</span>
+                        <span style={{ fontFamily: "'Fraunces', serif", fontSize: "1.05rem", fontWeight: 900, color: "var(--gold)" }}>R$ {(produto.preco ?? 0).toFixed(2).replace(".", ",")}</span>
                         {mediasAvaliacoes[produto.id]?.count > 0 && (
                           <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 1 }}>
                             <span style={{ color: "var(--gold)", fontSize: "0.7rem" }}>★</span>
@@ -637,7 +640,7 @@ const toggleFavorito = async (produto, e) => {
                         )}
                       </div>
                       {!isCatalogo && (
-                        <button onClick={e => { e.stopPropagation(); setProdutoModal(produto); }} style={{ width: 28, height: 28, background: !isAberto || esgotado ? "var(--bg3)" : "linear-gradient(135deg, var(--purple2), var(--purple))", border: "none", borderRadius: "50%", color: !isAberto || esgotado ? "var(--text3)" : "#fff", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <button onClick={e => { e.stopPropagation(); setProdutoModal(produto); }} style={{ width: 28, height: 28, background: !isAberto || esgotado ? "var(--bg3)" : isOriginalNexfoody ? "linear-gradient(135deg, var(--purple2), var(--purple))" : "var(--loja-cor-primaria)", border: "none", borderRadius: "50%", color: !isAberto || esgotado ? "var(--text3)" : "#fff", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           {!isAberto ? "🔒" : esgotado ? "✕" : "+"}
                         </button>
                       )}
@@ -684,13 +687,13 @@ const toggleFavorito = async (produto, e) => {
                     <div style={{ marginTop: "auto" }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                         <div>
-                          <span style={{ fontFamily: "'Fraunces', serif", fontSize: "1.05rem", fontWeight: 900, color: "var(--loja-cor-primaria)" }}>R$ {(produto.preco ?? 0).toFixed(2).replace(".", ",")}</span>
+                          <span style={{ fontFamily: "'Fraunces', serif", fontSize: "1.05rem", fontWeight: 900, color: "var(--gold)" }}>R$ {(produto.preco ?? 0).toFixed(2).replace(".", ",")}</span>
                           {mediasAvaliacoes[produto.id]?.count > 0 && (
                             <span style={{ marginLeft: 6, fontSize: "0.65rem", color: "var(--text3)" }}>★ {(mediasAvaliacoes[produto.id].total / mediasAvaliacoes[produto.id].count).toFixed(1)}</span>
                           )}
                         </div>
                         {!isCatalogo && (
-                          <button onClick={e => { e.stopPropagation(); setProdutoModal(produto); }} style={{ width: 32, height: 32, background: !isAberto || esgotado ? "var(--bg3)" : "linear-gradient(135deg, var(--purple2), var(--purple))", border: "none", borderRadius: "50%", color: !isAberto || esgotado ? "var(--text3)" : "#fff", fontSize: "1rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <button onClick={e => { e.stopPropagation(); setProdutoModal(produto); }} style={{ width: 32, height: 32, background: !isAberto || esgotado ? "var(--bg3)" : isOriginalNexfoody ? "linear-gradient(135deg, var(--purple2), var(--purple))" : "var(--loja-cor-primaria)", border: "none", borderRadius: "50%", color: !isAberto || esgotado ? "var(--text3)" : "#fff", fontSize: "1rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                             {!isAberto ? "🔒" : esgotado ? "✕" : "+"}
                           </button>
                         )}
@@ -774,7 +777,7 @@ const toggleFavorito = async (produto, e) => {
       {/* BOTÃO CARRINHO — só no modo delivery */}
       {!isCatalogo && cartCount() > 0 && (
         <div style={{ position: "fixed", bottom: 105, left: "50%", transform: "translateX(-50%)", zIndex: 50 }}>
-          <button onClick={() => navigate(`/loja/${slugParam}/carrinho`)} style={{ background: "linear-gradient(135deg, var(--purple2), var(--purple))", border: "none", borderRadius: 50, color: "#fff", fontWeight: 700, fontSize: "0.88rem", padding: "11px 24px", cursor: "pointer", fontFamily: "'Outfit', sans-serif", boxShadow: "0 6px 20px rgba(90,45,145,0.5)", display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
+          <button onClick={() => navigate(`/loja/${slugParam}/carrinho`)} style={{ background: isOriginalNexfoody ? "linear-gradient(135deg, var(--purple2), var(--purple))" : "var(--loja-cor-primaria)", border: "none", borderRadius: 50, color: "#fff", fontWeight: 700, fontSize: "0.88rem", padding: "11px 24px", cursor: "pointer", fontFamily: "'Outfit', sans-serif", boxShadow: isOriginalNexfoody ? "0 6px 20px rgba(90,45,145,0.5)" : "0 6px 20px rgba(0,0,0,0.3)", display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap" }}>
             🛒 Ver pedido ({cartCount()} {cartCount() === 1 ? "item" : "itens"})
           </button>
         </div>
@@ -810,10 +813,10 @@ const toggleFavorito = async (produto, e) => {
             }}
             style={{
               width: 52, height: 52,
-              background: "var(--loja-cor-acento)",
+              background: "var(--loja-header-bg)",
               border: "none", borderRadius: "50%", cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "22px", boxShadow: "0 4px 18px rgba(108,63,181,0.6)",
+              fontSize: "22px", boxShadow: "0 4px 18px rgba(0,0,0,0.35)",
             }}
             title="Pedir em 1 min - Chat IA"
           >
