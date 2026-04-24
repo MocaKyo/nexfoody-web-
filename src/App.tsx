@@ -170,7 +170,9 @@ function ThemeManager() {
     html.style.setProperty("--loja-nav-bg",     v.navBg     || navBg);
     html.style.setProperty("--loja-nav-border", v.navBorder || (isClaro ? "rgba(0,0,0,0.1)" : "rgba(138,92,246,0.18)"));
     html.style.setProperty("--loja-nav-texto",  v.navTexto  || (isClaro ? textoMudo! : "#7a6a9a"));
-    html.style.setProperty("--loja-nav-ativo",  v.corPrimaria);
+    // Bottom nav — ativo: gold para NexFoody original, corPrimaria para outras lojas
+    const navAtivo = v.corPrimaria === "#a855f7" ? "#f5c518" : v.corPrimaria;
+    html.style.setProperty("--loja-nav-ativo",  navAtivo);
 
     const ALL_VARS = [
       "--loja-cor-primaria","--loja-cor-acento","--loja-header-bg","--loja-fundo",

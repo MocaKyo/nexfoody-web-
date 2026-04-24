@@ -561,7 +561,7 @@ const toggleFavorito = async (produto, e) => {
         <div style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)", padding: "0 16px", position: "sticky", top: 108, zIndex: 20, display: "flex", alignItems: "center" }}>
           <div style={{ flex: 1, display: "flex", gap: 0, overflowX: "auto", scrollbarWidth: "none" }}>
             {abas.map(aba => (
-              <button key={aba.id} onClick={() => setCategoriaAtiva(aba.id)} style={{ flexShrink: 0, padding: "12px 16px", background: "none", border: "none", borderBottom: `2px solid ${categoriaAtiva === aba.id ? "var(--loja-cor-primaria)" : "transparent"}`, color: categoriaAtiva === aba.id ? "var(--loja-cor-primaria)" : "var(--text2)", fontFamily: "'Outfit', sans-serif", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+              <button key={aba.id} onClick={() => setCategoriaAtiva(aba.id)} style={{ flexShrink: 0, padding: "12px 16px", background: "none", border: "none", borderBottom: `2px solid ${categoriaAtiva === aba.id ? (isOriginalNexfoody ? "#f5c518" : "var(--loja-cor-primaria)") : "transparent"}`, color: categoriaAtiva === aba.id ? (isOriginalNexfoody ? "#f5c518" : "var(--loja-cor-primaria)") : "var(--text2)", fontFamily: "'Outfit', sans-serif", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
                 {aba.emoji} {aba.nome}
               </button>
             ))}
@@ -659,8 +659,8 @@ const toggleFavorito = async (produto, e) => {
                         <IconShare size={14} />
                       </button>
                       {user && (
-                        <button onClick={e => toggleQueroProvar(produto, e)} style={{ flex: 1, padding: "6px 4px", background: ativoProvar ? "rgba(138,92,246,0.08)" : "transparent", border: `1px solid ${ativoProvar ? "rgba(138,92,246,0.3)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: ativoProvar ? "var(--purple2)" : "var(--text3)" }}>
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill={ativoProvar ? "var(--purple2)" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 3-1.8 5.4-4 6.6V17a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-1.4C6.8 14.4 5 12 5 9a7 7 0 0 1 7-7z"/><line x1="9" y1="21" x2="15" y2="21"/><line x1="10" y1="17" x2="14" y2="17"/></svg>
+                        <button onClick={e => toggleQueroProvar(produto, e)} style={{ flex: 1, padding: "6px 4px", background: ativoProvar ? (isOriginalNexfoody ? "rgba(245,197,24,0.1)" : "rgba(138,92,246,0.08)") : "transparent", border: `1px solid ${ativoProvar ? (isOriginalNexfoody ? "rgba(245,197,24,0.3)" : "rgba(138,92,246,0.3)") : "var(--border)"}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: ativoProvar ? (isOriginalNexfoody ? "#f5c518" : "var(--purple2)") : "var(--text3)" }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill={ativoProvar ? (isOriginalNexfoody ? "#f5c518" : "var(--purple2)") : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 3-1.8 5.4-4 6.6V17a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-1.4C6.8 14.4 5 12 5 9a7 7 0 0 1 7-7z"/><line x1="9" y1="21" x2="15" y2="21"/><line x1="10" y1="17" x2="14" y2="17"/></svg>
                         </button>
                       )}
                     </div>
@@ -713,8 +713,8 @@ const toggleFavorito = async (produto, e) => {
                           <IconShare size={13} />
                         </button>
                         {user && (
-                          <button onClick={e => toggleQueroProvar(produto, e)} style={{ flex: 1, padding: "5px 4px", background: ativoProvar ? "rgba(138,92,246,0.08)" : "transparent", border: `1px solid ${ativoProvar ? "rgba(138,92,246,0.3)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: ativoProvar ? "var(--purple2)" : "var(--text3)" }}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill={ativoProvar ? "var(--purple2)" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 3-1.8 5.4-4 6.6V17a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-1.4C6.8 14.4 5 12 5 9a7 7 0 0 1 7-7z"/><line x1="9" y1="21" x2="15" y2="21"/><line x1="10" y1="17" x2="14" y2="17"/></svg>
+                          <button onClick={e => toggleQueroProvar(produto, e)} style={{ flex: 1, padding: "5px 4px", background: ativoProvar ? (isOriginalNexfoody ? "rgba(245,197,24,0.1)" : "rgba(138,92,246,0.08)") : "transparent", border: `1px solid ${ativoProvar ? (isOriginalNexfoody ? "rgba(245,197,24,0.3)" : "rgba(138,92,246,0.3)") : "var(--border)"}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: ativoProvar ? (isOriginalNexfoody ? "#f5c518" : "var(--purple2)") : "var(--text3)" }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill={ativoProvar ? (isOriginalNexfoody ? "#f5c518" : "var(--purple2)") : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 3-1.8 5.4-4 6.6V17a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-1.4C6.8 14.4 5 12 5 9a7 7 0 0 1 7-7z"/><line x1="9" y1="21" x2="15" y2="21"/><line x1="10" y1="17" x2="14" y2="17"/></svg>
                           </button>
                         )}
                       </div>
@@ -813,10 +813,10 @@ const toggleFavorito = async (produto, e) => {
             }}
             style={{
               width: 52, height: 52,
-              background: "var(--loja-header-bg)",
+              background: isOriginalNexfoody ? "linear-gradient(135deg, #25d366, #128c7e)" : "var(--loja-cor-primaria)",
               border: "none", borderRadius: "50%", cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "22px", boxShadow: "0 4px 18px rgba(0,0,0,0.35)",
+              fontSize: "22px", boxShadow: "0 4px 18px rgba(37, 211, 102, 0.4)",
             }}
             title="Pedir em 1 min - Chat IA"
           >
