@@ -80,7 +80,7 @@ export default function MeusPontos() {
         {/* CARD PONTOS */}
         {(modo === "pontos" || modo === "ambos" || modo === undefined) && (
           <div style={{
-            flex: 1, background: "linear-gradient(135deg, #2d1055, #1a0a36)",
+            flex: 1, background: "var(--bg2)",
             borderRadius: "var(--radius)", padding: "20px 16px",
             position: "relative", overflow: "hidden",
             border: "1px solid rgba(245,197,24,0.25)",
@@ -99,7 +99,7 @@ export default function MeusPontos() {
         {/* CARD CASHBACK */}
         {(modo === "cashback" || modo === "ambos") && (
           <div style={{
-            flex: 1, background: "linear-gradient(135deg, #0c1a3a, #071020)",
+            flex: 1, background: "var(--bg2)",
             borderRadius: "var(--radius)", padding: "20px 16px",
             position: "relative", overflow: "hidden",
             border: "1px solid rgba(96,165,250,0.25)",
@@ -122,7 +122,7 @@ export default function MeusPontos() {
 
       {/* CARD RANKING PTS */}
 <div style={{
-  background: "linear-gradient(135deg, #1a0536, #0f0518)",
+  background: "var(--bg2)",
   borderRadius: "var(--radius)", padding: "20px 16px", marginBottom: 16,
   border: "1px solid rgba(138,92,246,0.3)", position: "relative", overflow: "hidden"
 }}>

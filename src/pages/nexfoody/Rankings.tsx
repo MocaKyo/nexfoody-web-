@@ -96,14 +96,14 @@ export default function Rankings() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", background: "#080412", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ color: "rgba(255,255,255,.4)", fontFamily: "'Outfit', sans-serif", fontSize: "0.9rem" }}>Carregando rankings...</div>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080412", fontFamily: "'Outfit', sans-serif", color: "#fff" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Outfit', sans-serif", color: "#fff" }}>
       {/* Header */}
       <div style={{ position: "sticky", top: 0, zIndex: 100, background: "rgba(8,4,18,.97)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(255,255,255,.07)", padding: "0 16px", height: 56, display: "flex", alignItems: "center", gap: 12 }}>
         <button onClick={() => navigate(-1)} style={{ background: "none", border: "none", color: "rgba(255,255,255,.5)", cursor: "pointer", fontSize: "1.1rem", padding: 0 }}>←</button>

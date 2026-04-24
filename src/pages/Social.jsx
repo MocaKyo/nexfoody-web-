@@ -346,7 +346,7 @@ function TabPerfil({ user, userData }) {
   return (
     <div>
       {/* Card perfil */}
-      <div style={{ background: "linear-gradient(135deg, #2d1055, #1a0a36)", borderRadius: 16, padding: "24px 20px", marginBottom: 16, textAlign: "center", border: "1px solid rgba(245,197,24,0.15)" }}>
+      <div style={{ background: "var(--bg2)", borderRadius: 16, padding: "24px 20px", marginBottom: 16, textAlign: "center", border: "1px solid var(--border)" }}>
         {/* Avatar */}
         <div style={{ position: "relative", display: "inline-block", marginBottom: 12 }}>
           <div style={{ width: 80, height: 80, borderRadius: "50%", overflow: "hidden", background: "var(--bg3)", border: "3px solid rgba(245,197,24,0.4)", margin: "0 auto" }}>

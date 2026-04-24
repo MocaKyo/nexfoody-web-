@@ -100,7 +100,7 @@ export default function AdminDashboard() {
   const totalConvites = stats.convitesEnviados + stats.convitesCadastrados + stats.convitesAtivos || 1;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080412", fontFamily: "'Outfit',sans-serif", paddingBottom: 40 }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Outfit',sans-serif", paddingBottom: 40 }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
       {/* ── HEADER ── */}

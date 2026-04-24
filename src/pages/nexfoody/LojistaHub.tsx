@@ -160,17 +160,17 @@ export default function LojistaHub() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", background: "#080412", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ color: "rgba(255,255,255,.4)", fontSize: "0.9rem" }}>Carregando suas lojas...</div>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080412", fontFamily: "'Outfit', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Outfit', sans-serif" }}>
 
       {/* ── HEADER ── */}
-      <div style={{ background: "linear-gradient(135deg, #0f0618 0%, #1a0530 100%)", borderBottom: "1px solid rgba(245,197,24,.15)", padding: "20px 16px" }}>
+      <div style={{ background: "linear-gradient(135deg, var(--bg) 0%, var(--bg2) 100%)", borderBottom: "1px solid rgba(245,197,24,.15)", padding: "20px 16px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div>

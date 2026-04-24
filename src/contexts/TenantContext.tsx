@@ -34,8 +34,8 @@ export function TenantProvider({ children, slug: slugProp }: { children: React.R
         const lojaSnap = await getDoc(doc(db, "lojas", slug));
         console.log("[TenantProvider] lojaSnap exists:", lojaSnap.exists(), lojaSnap.data());
 
-        if (!lojaSnap.exists() || !lojaSnap.data()?.ativo) {
-          console.log("[TenantProvider] loja not found or inactive");
+        if (!lojaSnap.exists()) {
+          console.log("[TenantProvider] loja not found");
           setIsLoading(false);
           return;
         }

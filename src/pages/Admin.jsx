@@ -7034,6 +7034,15 @@ function TabComunicar() {
   const [uploadProg, setUploadProg] = useState(null);
   const storyFileRef = useRef(null);
 
+  const [posts, setPosts] = useState([]);
+  const [novoPostTipo, setNovoPostTipo] = useState("novidade");
+  const [novoPostTexto, setNovoPostTexto] = useState("");
+  const [novoPostFixado, setNovoPostFixado] = useState(false);
+  const [postFile, setPostFile] = useState(null);
+  const [postPreview, setPostPreview] = useState(null);
+  const [enviandoPost, setEnviandoPost] = useState(false);
+  const postFileRef = useRef(null);
+
   const [clientes, setClientes] = useState([]);
   const [broadcastMsg, setBroadcastMsg] = useState("");
   const [enviandoBroadcast, setEnviandoBroadcast] = useState(false);
@@ -7070,6 +7079,16 @@ function TabComunicar() {
     );
     return onSnapshot(q, snap => setStories(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
   }, [lojaDocId]);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    const q = query(
+      collection(db, `tenants/${tenantId}/posts`),
+      orderBy("createdAt", "desc"),
+      limit(30)
+    );
+    return onSnapshot(q, snap => setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+  }, [tenantId]);
 
   useEffect(() => {
     if (!lojaDocId) return;
@@ -7132,6 +7151,41 @@ function TabComunicar() {
     toast("Story removido.");
   };
 
+  const publicarPost = async () => {
+    if (!tenantId) return;
+    if (!novoPostTexto.trim()) { toast("Digite o texto do post", "error"); return; }
+    setEnviandoPost(true);
+    try {
+      let fotoUrl = null;
+      if (postFile) {
+        const path = `posts/${tenantId}/${Date.now()}_${postFile.name.replace(/[^a-z0-9.]/gi, "_")}`;
+        const sRef = storageRef(storage, path);
+        const task = uploadBytesResumable(sRef, postFile);
+        await new Promise((res, rej) => {
+          task.on("state_changed", null, rej,
+            async () => { fotoUrl = await getDownloadURL(task.snapshot.ref); res(); }
+          );
+        });
+      }
+      await addDoc(collection(db, `tenants/${tenantId}/posts`), {
+        tipo: novoPostTipo,
+        texto: novoPostTexto.trim(),
+        foto: fotoUrl,
+        fixado: novoPostFixado,
+        createdAt: serverTimestamp(),
+      });
+      toast("✅ Post publicado no feed!", "success");
+      setNovoPostTexto(""); setPostFile(null); setPostPreview(null); setNovoPostFixado(false);
+    } catch (e) { toast("Erro ao publicar post", "error"); console.error(e); }
+    finally { setEnviandoPost(false); }
+  };
+
+  const excluirPost = async (postId) => {
+    if (!tenantId) return;
+    await deleteDoc(doc(db, `tenants/${tenantId}/posts`, postId)).catch(() => {});
+    toast("Post removido.");
+  };
+
   const enviarBroadcast = async () => {
     if (!broadcastMsg.trim() || !lojaDocId || clientes.length === 0) return;
     setEnviandoBroadcast(true);
@@ -7163,11 +7217,101 @@ function TabComunicar() {
         Mantenha seus clientes engajados direto pelo NexFoody — sem precisar do WhatsApp.
       </p>
 
-      <div style={{ display: "flex", gap: 6, background: "var(--bg2)", borderRadius: 14, padding: 4 }}>
-        {[{ id: "stories", label: "📸 Stories" }, { id: "broadcast", label: "📣 Broadcast" }, { id: "auto", label: "🤖 Automático" }].map(a => (
-          <button key={a.id} onClick={() => setAba(a.id)} style={{ flex: 1, padding: "8px 4px", border: "none", borderRadius: 10, cursor: "pointer", fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: "0.78rem", background: aba === a.id ? "linear-gradient(135deg, #ec4899, #7c3aed)" : "transparent", color: aba === a.id ? "white" : "var(--text3)", transition: "all 0.2s" }}>{a.label}</button>
+      <div style={{ display: "flex", gap: 6, background: "var(--bg2)", borderRadius: 14, padding: 4, overflowX: "auto", scrollbarWidth: "none" }}>
+        {[{ id: "posts", label: "📝 Posts" }, { id: "stories", label: "📸 Stories" }, { id: "broadcast", label: "📣 Broadcast" }, { id: "auto", label: "🤖 Automático" }].map(a => (
+          <button key={a.id} onClick={() => setAba(a.id)} style={{ flex: "0 0 auto", padding: "8px 12px", border: "none", borderRadius: 10, cursor: "pointer", fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: "0.78rem", background: aba === a.id ? "linear-gradient(135deg, #ec4899, #7c3aed)" : "transparent", color: aba === a.id ? "white" : "var(--text3)", transition: "all 0.2s", whiteSpace: "nowrap" }}>{a.label}</button>
         ))}
       </div>
+
+      {aba === "posts" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Formulário de criação */}
+          <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 16, padding: 16 }}>
+            <div style={{ fontWeight: 800, fontSize: "0.92rem", marginBottom: 4 }}>✍️ Criar novo post</div>
+            <div style={{ fontSize: "0.72rem", color: "var(--text3)", marginBottom: 14, lineHeight: 1.6 }}>
+              Posts aparecem permanentemente no feed da sua loja ({tenantId}/feed) e podem ser vistos por qualquer cliente.
+            </div>
+
+            {/* Tipo */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+              {[{ id: "novidade", emoji: "✨", label: "Novidade" }, { id: "promo", emoji: "🔥", label: "Promoção" }, { id: "aviso", emoji: "📢", label: "Aviso" }].map(t => (
+                <button key={t.id} onClick={() => setNovoPostTipo(t.id)}
+                  style={{ flex: 1, padding: "7px 4px", border: `1px solid ${novoPostTipo === t.id ? "rgba(245,197,24,.5)" : "var(--border)"}`, borderRadius: 10, cursor: "pointer", fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: "0.72rem", background: novoPostTipo === t.id ? "rgba(245,197,24,.08)" : "var(--bg3)", color: novoPostTipo === t.id ? "var(--gold)" : "var(--text3)", transition: "all 0.2s" }}>
+                  {t.emoji} {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Preview da foto */}
+            {postPreview && (
+              <div style={{ position: "relative", marginBottom: 10 }}>
+                <img src={postPreview} alt="" style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 10 }} />
+                <button onClick={() => { setPostFile(null); setPostPreview(null); }}
+                  style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,.6)", border: "none", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", color: "white", fontSize: "0.85rem", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+              </div>
+            )}
+
+            <input ref={postFileRef} type="file" accept="image/*" style={{ display: "none" }}
+              onChange={e => { const f = e.target.files?.[0]; if (!f) return; setPostFile(f); setPostPreview(URL.createObjectURL(f)); e.target.value = ""; }} />
+            <button onClick={() => postFileRef.current?.click()}
+              style={{ width: "100%", padding: "9px", background: "rgba(124,58,237,0.08)", border: "1px dashed rgba(124,58,237,0.4)", borderRadius: 10, cursor: "pointer", fontFamily: "'Outfit', sans-serif", fontSize: "0.8rem", color: "var(--purple2)", fontWeight: 700, marginBottom: 10 }}>
+              {postFile ? `📁 ${postFile.name}` : "🖼️ Adicionar foto (opcional)"}
+            </button>
+
+            <textarea value={novoPostTexto} onChange={e => setNovoPostTexto(e.target.value)}
+              placeholder="Texto do post… Ex: 🫐 Novidade no cardápio! Açaí Especial com coberturas premium por R$18."
+              rows={3}
+              style={{ width: "100%", background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: 10, padding: "9px 12px", color: "var(--text)", fontFamily: "'Outfit', sans-serif", fontSize: "0.85rem", resize: "none", outline: "none", boxSizing: "border-box", marginBottom: 10 }}
+            />
+
+            <button onClick={() => setNovoPostFixado(p => !p)}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: novoPostFixado ? "rgba(245,197,24,.1)" : "var(--bg3)", border: `1px solid ${novoPostFixado ? "rgba(245,197,24,.4)" : "var(--border)"}`, borderRadius: 10, padding: "6px 14px", cursor: "pointer", fontFamily: "'Outfit', sans-serif", fontSize: "0.75rem", fontWeight: 700, color: novoPostFixado ? "var(--gold)" : "var(--text3)", marginBottom: 12 }}>
+              📌 {novoPostFixado ? "Fixado no topo" : "Fixar no topo"}
+            </button>
+
+            <button onClick={publicarPost} disabled={enviandoPost || !novoPostTexto.trim()}
+              style={{ width: "100%", padding: "11px", background: "linear-gradient(135deg, #7c3aed, #ec4899)", border: "none", borderRadius: 12, color: "white", fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: "0.88rem", cursor: "pointer", opacity: enviandoPost ? 0.6 : 1 }}>
+              {enviandoPost ? "Publicando…" : "📝 Publicar no feed"}
+            </button>
+          </div>
+
+          {/* Lista de posts */}
+          {posts.length > 0 ? (
+            <div>
+              <div style={{ fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: "var(--text3)", marginBottom: 10 }}>Posts publicados ({posts.length})</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {posts.map(p => {
+                  const cfg = { promo: { emoji: "🔥", color: "var(--gold)" }, novidade: { emoji: "✨", color: "var(--green)" }, aviso: { emoji: "📢", color: "#60a5fa" } }[p.tipo] || { emoji: "📢", color: "#60a5fa" };
+                  return (
+                    <div key={p.id} style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+                      {p.foto && <img src={p.foto} alt="" style={{ width: "100%", height: 120, objectFit: "cover" }} />}
+                      <div style={{ padding: "10px 12px", display: "flex", alignItems: "flex-start", gap: 10 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                            {p.fixado && <span style={{ fontSize: "0.65rem", color: "var(--gold)" }}>📌</span>}
+                            <span style={{ fontSize: "0.65rem", fontWeight: 700, color: cfg.color }}>{cfg.emoji} {(p.tipo || "aviso").toUpperCase()}</span>
+                          </div>
+                          <div style={{ fontSize: "0.82rem", color: "var(--text)", lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{p.texto}</div>
+                          <div style={{ fontSize: "0.65rem", color: "var(--text3)", marginTop: 4 }}>❤️ {p.curtidas || 0} · ↗️ {p.compartilhamentos || 0}</div>
+                        </div>
+                        <button onClick={() => excluirPost(p.id)}
+                          style={{ background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.3)", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: "0.72rem", color: "#ef4444", fontFamily: "'Outfit', sans-serif", fontWeight: 700, flexShrink: 0 }}>
+                          Excluir
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text3)", fontSize: "0.82rem" }}>
+              <div style={{ fontSize: "2rem", marginBottom: 8 }}>📝</div>
+              Nenhum post ainda. Crie o primeiro!
+            </div>
+          )}
+        </div>
+      )}
 
       {aba === "stories" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -8237,9 +8381,9 @@ function PreviewLojaModal({ visual, onClose }) {
 }
 
 const VISUAL_PADRAO_ADMIN = {
-  corPrimaria: "#f5c518", corAcento: "#7c3aed",
+  corPrimaria: "#a855f7", corAcento: "#7c3aed",
   corHeader: "#1a0a36", corFundo: "#080412",
-  bannerGradiente: true, bannerCorA: "#1a0a36", bannerCorB: "#0f0518",
+  bannerGradiente: true, bannerCorA: "#1a0a36", bannerCorB: "#2d1060",
   bannerDirecao: "135deg", fonte: "Outfit", bordaArredondada: true,
   temaBase: "dark",
 };
@@ -8248,7 +8392,7 @@ const PRESETS = [
   // ── TEMAS ESCUROS ──────────────────────────────────────────────
   { grupo: "🌑 Escuro",
     temas: [
-      { nome: "✨ NexFoody",        temaBase:"dark",  corPrimaria:"#f5c518", corAcento:"#7c3aed", corHeader:"#1a0a36", corFundo:"#080412", bannerCorA:"#1a0a36", bannerCorB:"#0f0518", _nexfoody: true },
+      { nome: "✨ Original NexFoody", temaBase:"dark", corPrimaria:"#a855f7", corAcento:"#7c3aed", corHeader:"#1a0a36", corFundo:"#080412", bannerCorA:"#1a0a36", bannerCorB:"#2d1060", _nexfoody: true, _original: true },
       { nome: "🍇 Açaí Dark",     temaBase:"dark",  corPrimaria:"#a855f7", corAcento:"#7c3aed", corHeader:"#1a0a36", corFundo:"#080412", bannerCorA:"#1a0a36", bannerCorB:"#2d1060" },
       { nome: "🍕 Pizza Fire",    temaBase:"dark",  corPrimaria:"#f97316", corAcento:"#dc2626", corHeader:"#1c0a00", corFundo:"#0f0500", bannerCorA:"#1c0a00", bannerCorB:"#7f1d1d" },
       { nome: "🌿 Saudável Dark", temaBase:"dark",  corPrimaria:"#22c55e", corAcento:"#16a34a", corHeader:"#052e16", corFundo:"#020d07", bannerCorA:"#052e16", bannerCorB:"#065f46" },
@@ -8945,7 +9089,7 @@ function TabAparencia() {
           </div>
         ))}
         <button onClick={() => aplicarPreset(VISUAL_PADRAO_ADMIN)}
-          style={{ width: "100%", marginTop: 10, padding: "11px", background: "linear-gradient(135deg,rgba(26,10,54,.9),rgba(15,5,24,.9))", border: "1.5px solid #f5c51855", borderRadius: 12, color: "#f5c518", fontFamily: "'Outfit',sans-serif", fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", letterSpacing: ".01em" }}>
+          style={{ width: "100%", marginTop: 10, padding: "11px", background: "var(--bg2)", border: "1.5px solid var(--border)", borderRadius: 12, color: "var(--gold)", fontFamily: "'Outfit',sans-serif", fontWeight: 700, fontSize: "0.82rem", cursor: "pointer", letterSpacing: ".01em" }}>
           🏠 Voltar ao padrão NexFoody
         </button>
       </div>

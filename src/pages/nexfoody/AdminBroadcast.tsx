@@ -112,7 +112,7 @@ export default function AdminBroadcast() {
   const tipoAtual = TIPOS.find(t => t.id === tipo)!;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080412", fontFamily: "'Outfit',sans-serif", paddingBottom: 48 }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Outfit',sans-serif", paddingBottom: 48 }}>
 
       {/* HEADER */}
       <div style={{ background: "linear-gradient(135deg,#1a0a36,#0f0720)", padding: "48px 20px 24px" }}>

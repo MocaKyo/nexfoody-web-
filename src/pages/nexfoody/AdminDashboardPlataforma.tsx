@@ -242,7 +242,7 @@ export default function AdminDashboardPlataforma() {
   const lojasAtivas = lojas.filter(l => l.ativo !== false).length;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080412", fontFamily: "'Outfit',sans-serif", paddingBottom: 40 }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Outfit',sans-serif", paddingBottom: 40 }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }

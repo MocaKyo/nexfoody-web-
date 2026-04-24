@@ -181,7 +181,7 @@ export default function Carteira() {
 
   if (!user) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#080412", padding: 24, textAlign: "center" }}>
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: 24, textAlign: "center" }}>
         <div style={{ fontSize: "3rem", marginBottom: 16 }}>💰</div>
         <div style={{ fontFamily: "'Fraunces',serif", fontSize: "1.3rem", fontWeight: 900, color: "#fff", marginBottom: 8 }}>Sua Carteira NexFoody</div>
         <div style={{ fontSize: "0.85rem", color: "rgba(255,255,255,.45)", marginBottom: 24 }}>Faça login para acessar seus ganhos</div>
@@ -193,14 +193,14 @@ export default function Carteira() {
   }
 
   if (carregando) return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#080412" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}>
       <div style={{ width: 36, height: 36, border: "3px solid rgba(245,197,24,.3)", borderTop: "3px solid #f5c518", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080412", fontFamily: "'Outfit',sans-serif", paddingBottom: 32 }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Outfit',sans-serif", paddingBottom: 32 }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }

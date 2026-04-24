@@ -387,7 +387,7 @@ export default function RankingsHub() {
 
   return (
     <div
-      style={{ minHeight: "100vh", background: "#080412", fontFamily: "'Outfit', sans-serif", color: "#fff", touchAction: "pan-y" }}
+      style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Outfit', sans-serif", color: "#fff", touchAction: "pan-y" }}
       onTouchStart={e => { pullStartY.current = e.touches[0].clientY; }}
       onTouchMove={e => {
         const dy = e.touches[0].clientY - pullStartY.current;

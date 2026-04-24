@@ -1508,13 +1508,17 @@ export default function NexfoodyFeedHome() {
                   </div>
 
                   {/* Mini tabela de pontos */}
-                  <div style={{ background:"rgba(245,197,24,.08)", border:"1px solid rgba(245,197,24,.15)", borderRadius:8, padding:"6px 8px", marginBottom:10 }}>
-                    {[["Cadastro de loja","500 pts"],["Amigo se cadastra","50 pts"],["Amigo faz 1ª compra","100 pts"],["Postar foto/review","30 pts"],["Sua 1ª compra","10 pts"],["Atualizar perfil","20 pts"]].map(([label, val]) => (
+                  <div style={{ background:"rgba(99,102,241,.12)", border:"1px solid rgba(99,102,241,.28)", borderRadius:8, padding:"6px 8px", marginBottom:10 }}>
+                    {[["Cadastro de loja","500"],["Amigo se cadastra","50"],["Amigo faz 1ª compra","100"],["Postar foto/review","30"],["Sua 1ª compra","10"],["Atualizar perfil","20"]].map(([label, val]) => (
                       <div key={label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"2px 0" }}>
                         <span style={{ fontSize:"0.58rem", color:"rgba(255,255,255,.4)" }}>{label}</span>
                         <span style={{ fontSize:"0.65rem", fontWeight:800, color:"#f5c518" }}>{val}</span>
                       </div>
                     ))}
+                    <div style={{ borderTop:"1px solid rgba(245,197,24,.2)", marginTop:4, paddingTop:4, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                      <span style={{ fontSize:"0.58rem", color:"rgba(255,255,255,.7)", fontWeight:700 }}>Total possível</span>
+                      <span style={{ fontSize:"0.7rem", fontWeight:900, color:"#f5c518" }}>710 pts</span>
+                    </div>
                   </div>
 
                   {/* Botão mapa */}
@@ -1525,7 +1529,7 @@ export default function NexfoodyFeedHome() {
 
                   {/* Meus Pontos */}
                   <button onClick={() => navigate("/pontos")}
-                    style={{ width:"100%", marginTop:6, display:"flex", alignItems:"center", gap:8, background:"rgba(245,197,24,.1)", border:"1px solid rgba(245,197,24,.25)", borderRadius:10, padding:"8px 10px", cursor:"pointer", textAlign:"left" }}>
+                    style={{ width:"100%", marginTop:6, display:"flex", alignItems:"center", gap:8, background:"rgba(99,102,241,.12)", border:"1px solid rgba(99,102,241,.28)", borderRadius:10, padding:"8px 10px", cursor:"pointer", textAlign:"left" }}>
                     <span style={{ fontSize:"1.1rem" }}>⭐</span>
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:"0.68rem", fontWeight:800, color:"#f5c518" }}>Meus Pontos</div>

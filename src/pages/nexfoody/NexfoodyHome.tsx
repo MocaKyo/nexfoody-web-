@@ -454,7 +454,7 @@ export default function NexfoodyHome() {
   }, []);
 
   return (
-    <div style={{ background: "#080412", color: "#fff", fontFamily: "'Outfit', sans-serif", overflowX: "hidden" }}>
+    <div style={{ background: "var(--bg)", color: "#fff", fontFamily: "'Outfit', sans-serif", overflowX: "hidden" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Fraunces:wght@700;900&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -472,7 +472,7 @@ export default function NexfoodyHome() {
         .btn-gold:hover { transform:translateY(-2px);box-shadow:0 8px 32px rgba(245,197,24,0.5); }
         .btn-outline { display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:15px 32px;background:transparent;color:#fff;border:2px solid rgba(255,255,255,0.25);border-radius:50px;font-weight:700;font-size:1rem;text-decoration:none;transition:all 0.2s; }
         .btn-outline:hover { border-color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.05); }
-        ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-track{background:#080412} ::-webkit-scrollbar-thumb{background:#7c3aed;border-radius:2px}
+        ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-track{background:var(--bg)} ::-webkit-scrollbar-thumb{background:#7c3aed;border-radius:2px}
       `}</style>
 
       {/* ── NAV ──────────────────────────────────────────────── */}
@@ -565,7 +565,7 @@ export default function NexfoodyHome() {
             {/* Phone principal (centro) */}
             <div style={{ position: "relative", zIndex: 10, width: 200, height: 420, background: "linear-gradient(145deg,#1a0a36,#0d0820)", border: "4px solid rgba(168,85,247,0.6)", borderRadius: 36, overflow: "hidden", boxShadow: "0 30px 80px rgba(124,58,237,0.4), 0 0 0 1px rgba(255,255,255,0.08)" }}>
               {/* Notch */}
-              <div style={{ position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", width: 60, height: 14, background: "#080412", borderRadius: 7, zIndex: 20 }} />
+              <div style={{ position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", width: 60, height: 14, background: "var(--bg)", borderRadius: 7, zIndex: 20 }} />
               {/* Screen content — chat */}
               <div style={{ padding: "30px 12px 12px", height: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ textAlign: "center", fontSize: "0.6rem", color: "rgba(255,255,255,0.4)", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: 8, marginBottom: 4 }}>🤖 NexBot · Açaí Puro Gosto</div>

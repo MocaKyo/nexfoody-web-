@@ -20,13 +20,13 @@ export interface LojaVisual {
 }
 
 export const VISUAL_PADRAO: LojaVisual = {
-  corPrimaria:      "#f5c518",
+  corPrimaria:      "#a855f7",
   corAcento:        "#7c3aed",
   corHeader:        "#1a0a36",
   corFundo:         "#080412",
   bannerGradiente:  true,
   bannerCorA:       "#1a0a36",
-  bannerCorB:       "#0f0518",
+  bannerCorB:       "#2d1060",
   bannerDirecao:    "135deg",
   fonte:            "Outfit",
   bordaArredondada: true,
@@ -119,6 +119,9 @@ export interface UserData {
     lojaSlug: string;
     adicionandoEm?: string;
   }>;
+  preferencias?: {
+    tema?: "dark" | "light" | "system";
+  };
 }
 
 export interface Pedido {

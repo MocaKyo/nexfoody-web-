@@ -69,7 +69,7 @@ const DEFAULT: LandingData = {
 
 // ─── STYLES ───────────────────────────────────────────────────
 const S = {
-  page: { background: "#080412", minHeight: "100vh", color: "#fff", fontFamily: "'Outfit', sans-serif", padding: "0 0 80px" } as React.CSSProperties,
+  page: { background: "var(--bg)", minHeight: "100vh", color: "#fff", fontFamily: "'Outfit', sans-serif", padding: "0 0 80px" } as React.CSSProperties,
   header: { background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "20px 32px", display: "flex", alignItems: "center", justifyContent: "space-between" } as React.CSSProperties,
   card: { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "24px" } as React.CSSProperties,
   label: { fontSize: "0.72rem", color: "rgba(255,255,255,0.45)", marginBottom: 6, display: "block", textTransform: "uppercase" as const, letterSpacing: "0.08em" },

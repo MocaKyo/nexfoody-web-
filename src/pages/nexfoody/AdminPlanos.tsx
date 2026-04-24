@@ -123,7 +123,7 @@ export default function AdminPlanos() {
   const mes = new Date().toLocaleString("pt-BR", { month: "long", year: "numeric" });
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080412", fontFamily: "'Outfit',sans-serif", paddingBottom: 48 }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Outfit',sans-serif", paddingBottom: 48 }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
       {/* HEADER */}

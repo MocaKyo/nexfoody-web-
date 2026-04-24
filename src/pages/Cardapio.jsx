@@ -358,7 +358,7 @@ const toggleFavorito = async (produto, e) => {
       {/* ── BANNER TOUR NOVO LOJISTA ───────────────────────────── */}
       {isTour && !tourFechado && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", flexDirection: "column", justifyContent: "flex-end", background: "rgba(5,2,15,.6)", backdropFilter: "blur(6px)" }}>
-          <div style={{ background: "linear-gradient(160deg,#0f0520,#1a0a36,#2d1060)", borderRadius: "28px 28px 0 0", border: "1.5px solid rgba(124,58,237,.4)", padding: "28px 24px 36px", boxShadow: "0 -20px 60px rgba(124,58,237,.25)" }}>
+          <div style={{ background: "var(--bg2)", borderRadius: "28px 28px 0 0", border: "1.5px solid var(--border)", padding: "28px 24px 36px", boxShadow: "0 -20px 60px rgba(0,0,0,0.15)" }}>
 
             {/* Ícones animados */}
             <div style={{ display: "flex", justifyContent: "center", gap: 10, marginBottom: 16 }}>
@@ -413,7 +413,7 @@ const toggleFavorito = async (produto, e) => {
       {/* ── BANNER FLUTUANTE (após fechar o modal tour) ─────────── */}
       {isTour && tourFechado && (
         <div style={{ position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)", zIndex: 9998, width: "calc(100% - 32px)", maxWidth: 420, pointerEvents: "none" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, background: "linear-gradient(135deg,rgba(10,4,20,.97),rgba(20,8,40,.97))", backdropFilter: "blur(16px)", border: "1.5px solid rgba(245,197,24,.4)", borderRadius: 18, padding: "12px 14px", boxShadow: "0 8px 32px rgba(0,0,0,.6),0 0 24px rgba(245,197,24,.15)", pointerEvents: "all" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--bg2)", backdropFilter: "blur(16px)", border: "1.5px solid var(--border)", borderRadius: 18, padding: "12px 14px", boxShadow: "0 8px 32px rgba(0,0,0,0.2)", pointerEvents: "all" }}>
             <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(245,197,24,.15)", border: "1px solid rgba(245,197,24,.35)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.3rem", flexShrink: 0 }}>📖</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 800, fontSize: "0.82rem", color: "#fff", lineHeight: 1.3 }}>Guia completo disponível</div>
@@ -431,25 +431,25 @@ const toggleFavorito = async (produto, e) => {
       <div style={{ position: "sticky", top: 60, zIndex: 30, background: "var(--bg)", padding: "6px 16px", borderBottom: "1px solid var(--border)", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
         <div style={{ position: "relative" }}>
           <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: "0.9rem", color: "var(--text3)", pointerEvents: "none" }}>🔍</span>
-          <input className="form-input" value={busca} onChange={e => { setBusca(e.target.value); if (e.target.value) setCategoriaAtiva("todos"); }} placeholder="Buscar produto..." style={{ paddingLeft: 36, borderRadius: 50, fontSize: "0.88rem", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }} />
+          <input className="form-input" value={busca} onChange={e => { setBusca(e.target.value); if (e.target.value) setCategoriaAtiva("todos"); }} placeholder="Buscar produto..." style={{ paddingLeft: 36, borderRadius: 50, fontSize: "0.88rem", background: "var(--bg2)", border: "1px solid var(--border)" }} />
           {busca && <button onClick={() => setBusca("")} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text3)", cursor: "pointer", fontSize: "1rem", padding: 0 }}>✕</button>}
         </div>
       </div>
 
       {/* CABEÇALHO DA LOJA */}
-      <div style={{ background: "var(--loja-banner-bg, linear-gradient(135deg, #1a0a36, #0f0518))", padding: "0 0 8px", overflow: "hidden" }}>
+      <div style={{ background: "var(--loja-header-bg, var(--bg))", padding: "0 0 8px", overflow: "hidden" }}>
         {config.imagemCapa && (
           <div style={{ position: "relative", height: 90, marginBottom: 8 }}>
             <img src={config.imagemCapa} alt="Capa" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 30%, rgba(10,4,20,0.95) 100%)" }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 30%, var(--bg) 100%)" }} />
           </div>
         )}
         <div style={{ padding: config.imagemCapa ? "0 16px" : "16px 16px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}>
-            <img src={config.logoUrl || LOGO_URL} alt="Logo" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover", border: "2px solid color-mix(in srgb, var(--loja-cor-primaria, #f5c518) 40%, transparent)", boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }} />
+            <img src={config.logoUrl || LOGO_URL} alt="Logo" style={{ width: 56, height: 56, borderRadius: 14, objectFit: "cover", border: "2px solid rgba(245,197,24,0.4)", boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }} />
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ fontFamily: "var(--loja-fonte, 'Fraunces', serif)", fontSize: "1.2rem", fontWeight: 700, color: "#f5c518", display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ fontFamily: "'Fraunces', serif", fontSize: "1.2rem", fontWeight: 700, color: "#f5c518", display: "flex", alignItems: "center", gap: 6 }}>
                   {config.nomeLoja || "Açaí Puro Gosto"}
                   {(() => {
                     const totalEstrelas = Object.values(mediasAvaliacoes).reduce((acc, m) => acc + m.total, 0);
@@ -470,7 +470,7 @@ const toggleFavorito = async (produto, e) => {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: isAberto ? "#22c55e" : "#ef4444", boxShadow: isAberto ? "0 0 6px #22c55e" : "none", flexShrink: 0 }} />
-                <span style={{ fontSize: "0.75rem", color: isAberto ? "#22c55e" : "#ef4444", fontWeight: 600 }}>
+                <span style={{ fontSize: "0.75rem", color: "var(--loja-header-texto)", fontWeight: 600 }}>
                   {isAberto
                     ? config.horarioFechamento ? `Aberto até às ${config.horarioFechamento}` : "Aberto"
                     : config.horarioAbertura ? `Abre às ${config.horarioAbertura}` : "Fechado"
@@ -481,14 +481,14 @@ const toggleFavorito = async (produto, e) => {
                 )}
                 {(() => {
                   const total = config.pedidosEntregues || 0;
-                  if (total >= 3000) return <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "rgba(245,197,24,0.1)", border: "1px solid rgba(245,197,24,0.35)", borderRadius: 20, padding: "1px 7px", fontSize: "0.65rem", fontWeight: 700, color: "#f5c518" }}>🥇 +3k</span>;
+                  if (total >= 3000) return <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "var(--gold-dim)", border: "1px solid var(--loja-cor-icon)", borderRadius: 20, padding: "1px 7px", fontSize: "0.65rem", fontWeight: 700, color: "var(--loja-cor-primaria)" }}>🥇 +3k</span>;
                   if (total >= 2000) return <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "rgba(192,192,192,0.1)", border: "1px solid rgba(192,192,192,0.35)", borderRadius: 20, padding: "1px 7px", fontSize: "0.65rem", fontWeight: 700, color: "#c0c0c0" }}>🥈 +2k</span>;
                   if (total >= 1000) return <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "rgba(205,127,50,0.1)", border: "1px solid rgba(205,127,50,0.35)", borderRadius: 20, padding: "1px 7px", fontSize: "0.65rem", fontWeight: 700, color: "#cd7f32" }}>🥉 +1k</span>;
                   return null;
                 })()}
-                {config.tempoEntrega && <span style={{ fontSize: "0.72rem", color: "var(--loja-banner-texto, rgba(255,255,255,0.6))", opacity: 0.7 }}>· 🕐 {config.tempoEntrega}</span>}
+                {config.tempoEntrega && <span style={{ fontSize: "0.72rem", color: "var(--loja-header-texto)", opacity: 0.7 }}>· 🕐 {config.tempoEntrega}</span>}
                 {(config.pedidoMinimo > 0 || config.taxaEntrega) && (
-                  <span style={{ fontSize: "0.68rem", color: "var(--loja-banner-texto, #f5c518)", fontWeight: 600 }}>
+                  <span style={{ fontSize: "0.68rem", color: "var(--loja-header-texto)", fontWeight: 600 }}>
                     {config.pedidoMinimo > 0 && `· 🛒 mín R$ ${parseFloat(config.pedidoMinimo).toFixed(2).replace(".", ",")}`}
                     {config.taxaEntrega > 0 && ` · 🚚 R$ ${parseFloat(config.taxaEntrega).toFixed(2).replace(".", ",")}`}
                     {config.entregaGratisMin > 0 && ` (grátis ≥ R$ ${parseFloat(config.entregaGratisMin).toFixed(2).replace(".", ",")})`}
@@ -535,22 +535,21 @@ const toggleFavorito = async (produto, e) => {
 
       {/* BANNER PROMOÇÃO */}
       {mostrarPromo && config.bannerPromocao && (
-        <div style={{ background: "linear-gradient(135deg, var(--loja-cor-acento, #7c3aed), color-mix(in srgb, var(--loja-cor-acento, #7c3aed) 70%, #000))", padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: "1.1rem" }}>🎉</span>
+        <div style={{ background: "linear-gradient(135deg, #7c3aed, #5a2d91)", padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ flex: 1, fontSize: "0.82rem", fontWeight: 600, color: "#fff" }}>{config.bannerPromocao}</span>
-          <button onClick={() => setMostrarPromo(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: "1rem", padding: 0 }}>✕</button>
+          <button onClick={() => setMostrarPromo(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: "1rem", padding: 0 }}>✕</button>
         </div>
       )}
 
       {/* WIDGET FIDELIDADE */}
       {user && pontos > 0 && (
-        <div style={{ background: "linear-gradient(135deg, rgba(90,45,145,0.35), rgba(59,26,110,0.35))", borderBottom: "1px solid rgba(245,197,24,0.12)", padding: "8px 16px", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ background: "var(--bg2)", borderBottom: "1px solid var(--border)", padding: "8px 16px", display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: "0.95rem" }}>⭐</span>
           <div style={{ flex: 1, fontSize: "0.75rem" }}>
-            <span style={{ color: "var(--gold)", fontWeight: 700 }}>{pontos} pontos</span>
+            <span style={{ color: "var(--loja-cor-icon)", fontWeight: 700 }}>{pontos} pontos</span>
             <span style={{ color: "rgba(255,255,255,0.45)" }}> disponíveis para resgatar</span>
           </div>
-          <button onClick={() => navigate("/pontos")} style={{ background: "rgba(245,197,24,0.12)", border: "1px solid rgba(245,197,24,0.25)", borderRadius: 20, padding: "4px 10px", cursor: "pointer", color: "var(--gold)", fontFamily: "'Outfit', sans-serif", fontSize: "0.7rem", fontWeight: 700 }}>Ver prêmios</button>
+          <button onClick={() => navigate("/pontos")} style={{ background: "var(--gold-dim)", border: "1px solid var(--loja-cor-icon)", borderRadius: 20, padding: "4px 10px", cursor: "pointer", color: "var(--loja-cor-icon)", fontFamily: "'Outfit', sans-serif", fontSize: "0.7rem", fontWeight: 700 }}>Ver prêmios</button>
         </div>
       )}
 
@@ -559,7 +558,7 @@ const toggleFavorito = async (produto, e) => {
         <div style={{ background: "var(--bg)", borderBottom: "1px solid var(--border)", padding: "0 16px", position: "sticky", top: 108, zIndex: 20, display: "flex", alignItems: "center" }}>
           <div style={{ flex: 1, display: "flex", gap: 0, overflowX: "auto", scrollbarWidth: "none" }}>
             {abas.map(aba => (
-              <button key={aba.id} onClick={() => setCategoriaAtiva(aba.id)} style={{ flexShrink: 0, padding: "12px 16px", background: "none", border: "none", borderBottom: `2px solid ${categoriaAtiva === aba.id ? "var(--gold)" : "transparent"}`, color: categoriaAtiva === aba.id ? "var(--gold)" : "var(--text2)", fontFamily: "'Outfit', sans-serif", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+              <button key={aba.id} onClick={() => setCategoriaAtiva(aba.id)} style={{ flexShrink: 0, padding: "12px 16px", background: "none", border: "none", borderBottom: `2px solid ${categoriaAtiva === aba.id ? "var(--loja-cor-primaria)" : "transparent"}`, color: categoriaAtiva === aba.id ? "var(--loja-cor-primaria)" : "var(--text2)", fontFamily: "'Outfit', sans-serif", fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
                 {aba.emoji} {aba.nome}
               </button>
             ))}
@@ -568,13 +567,13 @@ const toggleFavorito = async (produto, e) => {
           <div style={{ display: "flex", gap: 2, flexShrink: 0, marginLeft: 8 }}>
             <button
               onClick={() => { setLayoutView("grid"); localStorage.setItem("cardapioLayout", "grid"); }}
-              style={{ width: 30, height: 30, background: layoutView === "grid" ? "rgba(245,197,24,0.12)" : "transparent", border: `1px solid ${layoutView === "grid" ? "rgba(245,197,24,0.4)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: layoutView === "grid" ? "var(--gold)" : "var(--text3)" }}
+              style={{ width: 30, height: 30, background: layoutView === "grid" ? "var(--gold-dim)" : "transparent", border: `1px solid ${layoutView === "grid" ? "var(--loja-cor-icon)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: layoutView === "grid" ? "var(--loja-cor-icon)" : "var(--text3)" }}
               title="Grade">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
             </button>
             <button
               onClick={() => { setLayoutView("list"); localStorage.setItem("cardapioLayout", "list"); }}
-              style={{ width: 30, height: 30, background: layoutView === "list" ? "rgba(245,197,24,0.12)" : "transparent", border: `1px solid ${layoutView === "list" ? "rgba(245,197,24,0.4)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: layoutView === "list" ? "var(--gold)" : "var(--text3)" }}
+              style={{ width: 30, height: 30, background: layoutView === "list" ? "var(--gold-dim)" : "transparent", border: `1px solid ${layoutView === "list" ? "var(--loja-cor-icon)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: layoutView === "list" ? "var(--loja-cor-icon)" : "var(--text3)" }}
               title="Lista">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="18" height="3" rx="1"/><rect x="3" y="10.5" width="18" height="3" rx="1"/><rect x="3" y="17" width="18" height="3" rx="1"/></svg>
             </button>
@@ -629,10 +628,10 @@ const toggleFavorito = async (produto, e) => {
                     {produto.desc && <div style={{ fontSize: "0.7rem", color: "var(--text3)", marginBottom: 6, lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{produto.desc}</div>}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
-                        <span style={{ fontFamily: "'Fraunces', serif", fontSize: "1.05rem", fontWeight: 900, color: "var(--gold)" }}>R$ {(produto.preco ?? 0).toFixed(2).replace(".", ",")}</span>
+                        <span style={{ fontFamily: "'Fraunces', serif", fontSize: "1.05rem", fontWeight: 900, color: "var(--loja-cor-primaria)" }}>R$ {(produto.preco ?? 0).toFixed(2).replace(".", ",")}</span>
                         {mediasAvaliacoes[produto.id]?.count > 0 && (
                           <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 1 }}>
-                            <span style={{ color: "#f5c518", fontSize: "0.7rem" }}>★</span>
+                            <span style={{ color: "var(--gold)", fontSize: "0.7rem" }}>★</span>
                             <span style={{ fontSize: "0.65rem", color: "var(--text3)" }}>{(mediasAvaliacoes[produto.id].total / mediasAvaliacoes[produto.id].count).toFixed(1)} ({mediasAvaliacoes[produto.id].count})</span>
                           </div>
                         )}
@@ -647,8 +646,8 @@ const toggleFavorito = async (produto, e) => {
                       <button onClick={e => { e.stopPropagation(); toggleLike(produto); }} style={{ flex: 1, padding: "6px 4px", background: likedProducts[produto.id] ? "rgba(239,68,68,0.08)" : "transparent", border: `1px solid ${likedProducts[produto.id] ? "rgba(239,68,68,0.3)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: likedProducts[produto.id] ? "#ef4444" : "var(--text3)" }}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill={likedProducts[produto.id] ? "#ef4444" : "none"} stroke={likedProducts[produto.id] ? "#ef4444" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                       </button>
-                      <button onClick={e => toggleFavorito(produto, e)} style={{ flex: 1, padding: "6px 4px", background: favoritos[produto.id] ? "rgba(245,197,24,0.08)" : "transparent", border: `1px solid ${favoritos[produto.id] ? "rgba(245,197,24,0.3)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: favoritos[produto.id] ? "#f5c518" : "var(--text3)" }}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill={favoritos[produto.id] ? "#f5c518" : "none"} stroke={favoritos[produto.id] ? "#f5c518" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
+                      <button onClick={e => toggleFavorito(produto, e)} style={{ flex: 1, padding: "6px 4px", background: favoritos[produto.id] ? "var(--gold-dim)" : "transparent", border: `1px solid ${favoritos[produto.id] ? "var(--loja-cor-icon)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: favoritos[produto.id] ? "var(--loja-cor-icon)" : "var(--text3)" }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill={favoritos[produto.id] ? "var(--loja-cor-icon)" : "none"} stroke={favoritos[produto.id] ? "var(--loja-cor-icon)" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
                       </button>
                       <button onClick={e => { e.stopPropagation(); setComentarioModal(produto); }} style={{ flex: 1, padding: "6px 4px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text3)" }}>
                         <IconComment size={15} />
@@ -685,7 +684,7 @@ const toggleFavorito = async (produto, e) => {
                     <div style={{ marginTop: "auto" }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                         <div>
-                          <span style={{ fontFamily: "'Fraunces', serif", fontSize: "1.05rem", fontWeight: 900, color: "var(--gold)" }}>R$ {(produto.preco ?? 0).toFixed(2).replace(".", ",")}</span>
+                          <span style={{ fontFamily: "'Fraunces', serif", fontSize: "1.05rem", fontWeight: 900, color: "var(--loja-cor-primaria)" }}>R$ {(produto.preco ?? 0).toFixed(2).replace(".", ",")}</span>
                           {mediasAvaliacoes[produto.id]?.count > 0 && (
                             <span style={{ marginLeft: 6, fontSize: "0.65rem", color: "var(--text3)" }}>★ {(mediasAvaliacoes[produto.id].total / mediasAvaliacoes[produto.id].count).toFixed(1)}</span>
                           )}
@@ -701,8 +700,8 @@ const toggleFavorito = async (produto, e) => {
                         <button onClick={e => { e.stopPropagation(); toggleLike(produto); }} style={{ flex: 1, padding: "5px 4px", background: likedProducts[produto.id] ? "rgba(239,68,68,0.08)" : "transparent", border: `1px solid ${likedProducts[produto.id] ? "rgba(239,68,68,0.3)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: likedProducts[produto.id] ? "#ef4444" : "var(--text3)" }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill={likedProducts[produto.id] ? "#ef4444" : "none"} stroke={likedProducts[produto.id] ? "#ef4444" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                         </button>
-                        <button onClick={e => toggleFavorito(produto, e)} style={{ flex: 1, padding: "5px 4px", background: favoritos[produto.id] ? "rgba(245,197,24,0.08)" : "transparent", border: `1px solid ${favoritos[produto.id] ? "rgba(245,197,24,0.3)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: favoritos[produto.id] ? "#f5c518" : "var(--text3)" }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill={favoritos[produto.id] ? "#f5c518" : "none"} stroke={favoritos[produto.id] ? "#f5c518" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                        <button onClick={e => toggleFavorito(produto, e)} style={{ flex: 1, padding: "5px 4px", background: favoritos[produto.id] ? "var(--gold-dim)" : "transparent", border: `1px solid ${favoritos[produto.id] ? "var(--loja-cor-icon)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: favoritos[produto.id] ? "var(--loja-cor-icon)" : "var(--text3)" }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill={favoritos[produto.id] ? "var(--loja-cor-icon)" : "none"} stroke={favoritos[produto.id] ? "var(--loja-cor-icon)" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
                         </button>
                         <button onClick={e => { e.stopPropagation(); setComentarioModal(produto); }} style={{ flex: 1, padding: "5px 4px", background: "transparent", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text3)" }}>
                           <IconComment size={14} />
@@ -762,7 +761,7 @@ const toggleFavorito = async (produto, e) => {
       )}
 
       {/* ORDENAÇÃO FIXA */}
-      <div style={{ position: "fixed", bottom: 50, left: 0, right: 0, zIndex: 40, background: "rgba(13,5,24,0.97)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", borderTop: "1px solid var(--border)", padding: "6px 16px", display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", transform: "translateZ(0)" }}>
+      <div style={{ position: "fixed", bottom: 50, left: 0, right: 0, zIndex: 40, background: userScrolled ? "rgba(13,5,24,0.97)" : "transparent", backdropFilter: userScrolled ? "blur(10px)" : "none", WebkitBackdropFilter: userScrolled ? "blur(10px)" : "none", borderTop: userScrolled ? "1px solid rgba(138,92,246,0.18)" : "1px solid transparent", padding: "6px 16px", display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", transform: "translateZ(0)", transition: "all 0.3s" }}>
         {getFiltrosOrdenados(config).map(filtro => {
           if (filtro.tipo === "nav") {
             return <button key={filtro.id} onClick={() => navigate(filtro.path === "/feed" && slugParam ? `/loja/${slugParam}/feed` : filtro.path)} style={{ flexShrink: 0, padding: "5px 12px", background: userScrolled ? "rgba(245,197,24,0.1)" : "transparent", border: `1px solid ${userScrolled ? "rgba(245,197,24,0.25)" : "rgba(255,255,255,0.08)"}`, borderRadius: 50, cursor: "pointer", color: userScrolled ? "var(--gold)" : "rgba(255,255,255,0.2)", fontFamily: "'Outfit', sans-serif", fontSize: "0.72rem", fontWeight: 600, transition: "all 0.3s" }}>{filtro.label}</button>;
@@ -811,7 +810,7 @@ const toggleFavorito = async (produto, e) => {
             }}
             style={{
               width: 52, height: 52,
-              background: "linear-gradient(135deg, #6c3fb5, #9b59b6)",
+              background: "var(--loja-cor-acento)",
               border: "none", borderRadius: "50%", cursor: "pointer",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: "22px", boxShadow: "0 4px 18px rgba(108,63,181,0.6)",

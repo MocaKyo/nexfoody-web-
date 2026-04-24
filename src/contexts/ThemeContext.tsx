@@ -34,26 +34,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const resolvedTheme = resolveTheme(theme);
 
+  // ThemeManager (App.tsx) handles data-tema for store pages (loja/:slug).
+  // ThemeContext sets data-tema for non-store pages (platform pages).
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute("data-tema", resolvedTheme);
-
-    // Noise texture only on dark theme
-    const noise = document.body?.style;
-    // noop — noise handled in CSS
   }, [resolvedTheme]);
 
   useEffect(() => {
     localStorage.setItem("nexfoody_theme", theme);
   }, [theme]);
 
-  // Listen for system preference changes when in "system" mode
+  // Listen for system preference changes — only when user is in "system" mode
+  // Note: ThemeManager (App.tsx) handles data-tema for all store/tenant routes
   useEffect(() => {
     if (theme !== "system") return;
     const mq = window.matchMedia("(prefers-color-scheme: light)");
     const handler = () => {
-      const root = document.documentElement;
-      root.setAttribute("data-tema", getSystemTheme());
+      // ThemeManager picks this up via resolvedTheme dependency - no direct DOM here
     };
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);

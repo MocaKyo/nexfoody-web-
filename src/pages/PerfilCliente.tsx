@@ -1,4 +1,5 @@
-// src/pages/PerfilCliente.js
+// @ts-nocheck
+// src/pages/PerfilCliente.tsx
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { doc, getDoc, getDocs, updateDoc, onSnapshot, collection, query, where, orderBy, limit, addDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
@@ -6,6 +7,7 @@ import { ref as storageRef, uploadBytesResumable, getDownloadURL } from "firebas
 import { db, storage } from "../lib/firebase";
 import { useAuth } from "../contexts/AuthContext";
 import { useStore } from "../contexts/StoreContext";
+import { useTheme } from "../contexts/ThemeContext";
 import { getBadges } from "../components/RankingFas";
 import CaixasDuplas from "../components/CaixasDuplas";
 
@@ -27,6 +29,7 @@ export default function PerfilCliente() {
   const { userId } = useParams();
   const { user, userData, logout, isLojista } = useAuth();
   const { config } = useStore();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const isMeu = !userId || userId === user?.uid;
   const targetId = isMeu ? user?.uid : userId;
@@ -498,7 +501,7 @@ export default function PerfilCliente() {
       <div style={{ maxWidth: 520, margin: "0 auto" }}>
 
         {/* Capa */}
-        <div style={{ height: 120, background: "linear-gradient(135deg, #2d1055, #1a0a36, #0f0518)", position: "relative", overflow: "hidden" }}>
+        <div style={{ height: 120, background: "var(--bg)", position: "relative", overflow: "hidden" }}>
           {perfil.fotoCapa && (
             <img src={perfil.fotoCapa} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: `center ${capaY}%` }} />
           )}
@@ -561,12 +564,64 @@ export default function PerfilCliente() {
                 <input className="form-input" value={form.cidade} onChange={e => setForm(p => ({ ...p, cidade: e.target.value }))} placeholder="Ex: Bacabal - MA" />
               </div>
               {/* Toggle perfil oculto */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
                 <div>
                   <div style={{ fontSize: "0.82rem", fontWeight: 600 }}>🔒 Perfil oculto</div>
                   <div style={{ fontSize: "0.7rem", color: "var(--text3)", marginTop: 2 }}>Some do ranking e buscas públicas</div>
                 </div>
                 <div className={`toggle-switch ${form.perfilOculto ? "on" : ""}`} onClick={() => setForm(p => ({ ...p, perfilOculto: !p.perfilOculto }))} style={{ cursor: "pointer" }} />
+              </div>
+              {/* Seletor de tema */}
+              <div style={{ background: "var(--bg2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
+                <div style={{ fontSize: "0.82rem", fontWeight: 600, marginBottom: 8 }}>🎨 Aparência</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {[
+                    { value: "light", label: "☀️ Claro", color: "#f5c518" },
+                    { value: "dark",  label: "🌙 Escuro", color: "#8a5cf6" },
+                    { value: "system", label: "⚙️ Sistema", color: "#6b7280" },
+                  ].map(t => (
+                    <button
+                      key={t.value}
+                      onClick={() => setTheme(t.value as "light" | "dark" | "system")}
+                      style={{
+                        flex: 1, padding: "7px 4px",
+                        background: theme === t.value ? "var(--gold-dim)" : "transparent",
+                        border: `1.5px solid ${theme === t.value ? t.color : "var(--border)"}`,
+                        borderRadius: 8, cursor: "pointer",
+                        color: theme === t.value ? t.color : "var(--text3)",
+                        fontFamily: "'Outfit', sans-serif",
+                        fontSize: "0.72rem", fontWeight: 600,
+                        transition: "all 0.2s",
+                      }}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setTheme("dark")}
+                    title="Voltar ao padrão NexFoody"
+                    style={{
+                      padding: "7px 8px",
+                      background: theme === "dark" && !localStorage.getItem("nexfoody_theme") ? "var(--gold-dim)" : "transparent",
+                      border: "1.5px solid var(--border)",
+                      borderRadius: 8, cursor: "pointer",
+                      color: "var(--text3)",
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: "0.72rem", fontWeight: 600,
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    🏠
+                  </button>
+                </div>
+                {localStorage.getItem("nexfoody_theme") && (
+                  <button
+                    onClick={() => { localStorage.removeItem("nexfoody_theme"); setTheme("dark"); }}
+                    style={{ width: "100%", marginTop: 6, padding: "6px", background: "none", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text3)", fontFamily: "'Outfit', sans-serif", fontSize: "0.68rem", cursor: "pointer" }}
+                  >
+                    🔄 Voltar ao padrão NexFoody
+                  </button>
+                )}
               </div>
               <button onClick={salvar} disabled={salvando} style={{ width: "100%", padding: "13px", background: "linear-gradient(135deg, var(--purple2), var(--purple))", border: "none", borderRadius: 12, color: "#fff", fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: "0.95rem", cursor: "pointer", boxShadow: "0 4px 16px rgba(90,45,145,0.4)" }}>
                 {salvando ? "Salvando..." : "💾 Salvar perfil"}

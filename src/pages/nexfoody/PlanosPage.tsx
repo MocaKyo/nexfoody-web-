@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { doc, updateDoc, collection, addDoc, serverTimestamp, getDocs, query, where } from "firebase/firestore";
 import { db } from "../../lib/firebase";
+// @ts-ignore
 import QRCode from "qrcode";
 
 const PLANOS = [
@@ -84,8 +85,10 @@ const PIX_KEY = "1199984623356";
 const NEXFOODY_NAME = "Nexfoody";
 const NEXFOODY_CITY = "Sao Paulo";
 
-function gerarPayloadPix({ chave, nome, cidade, valor, txid }) {
-  const f = (id, v) => `${id}${String(v.length).toString().padStart(2, "0")}${v}`;
+interface PixPayload { chave: string; nome: string; cidade: string; valor: string | number; txid: string; }
+
+function gerarPayloadPix({ chave, nome, cidade, valor, txid }: PixPayload): string {
+  const f = (id: string, v: string) => `${id}${String(v.length).toString().padStart(2, "0")}${v}`;
   const merchantAccountInfo = f("00", "BR.GOV.BCB.PIX") + f("01", chave);
   const ref = txid.replace(/[^a-zA-Z0-9]/g, "").substring(0, 25) || "NEXFOODY";
   const payload =
@@ -93,7 +96,7 @@ function gerarPayloadPix({ chave, nome, cidade, valor, txid }) {
     f("26", merchantAccountInfo) +
     f("52", "0000") +
     f("53", "986") +
-    f("54", parseFloat(valor).toFixed(2)) +
+    f("54", String(parseFloat(String(valor)).toFixed(2))) +
     f("58", "BR") +
     f("59", nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").substring(0, 25)) +
     f("60", cidade.normalize("NFD").replace(/[\u0300-\u036f]/g, "").substring(0, 15)) +
@@ -115,7 +118,8 @@ function crc16ccitt(str: string): string {
   return crc.toString(16).toUpperCase().padStart(4, "0");
 }
 
-function PixQRCode({ valor, descricao, onConfirmar, loading }) {
+interface PixQRCodeProps { valor: string | number; descricao: string; onConfirmar: () => void; loading: boolean; }
+function PixQRCode({ valor, descricao, onConfirmar, loading }: PixQRCodeProps) {
   const [copiado, setCopiado] = useState(false);
   const [payload, setPayload] = useState("");
   const [qrUrl, setQrUrl] = useState("");
@@ -131,7 +135,7 @@ function PixQRCode({ valor, descricao, onConfirmar, loading }) {
         margin: 2,
         color: { dark: "#1e0a36", light: "#ffffff" },
         errorCorrectionLevel: "M",
-      }).then(url => setQrUrl(url)).catch(console.error);
+      }).then((url: string) => setQrUrl(url)).catch(console.error);
     } catch (e) {
       console.error("Erro ao gerar PIX:", e);
     }
@@ -178,7 +182,7 @@ function PixQRCode({ valor, descricao, onConfirmar, loading }) {
       )}
 
       <div style={{ fontFamily: "'Fraunces', serif", fontSize: "1.6rem", fontWeight: 900, color: "#22c55e", marginBottom: 16 }}>
-        R$ {parseFloat(valor).toFixed(2).replace(".", ",")}
+        R$ {parseFloat(String(valor)).toFixed(2).replace(".", ",")}
       </div>
 
       <button onClick={copiar} style={{
@@ -225,7 +229,8 @@ function PixQRCode({ valor, descricao, onConfirmar, loading }) {
   );
 }
 
-function PlanoCard({ plano, onAtivar }) {
+interface PlanoCardProps { plano: any; onAtivar: (p: any) => void; }
+function PlanoCard({ plano, onAtivar }: PlanoCardProps) {
   return (
     <div
       style={{
@@ -283,7 +288,7 @@ function PlanoCard({ plano, onAtivar }) {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
-        {plano.recursos.map((r, i) => (
+        {plano.recursos.map((r: string, i: number) => (
           <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
             <span style={{ color: plano.cor, fontSize: "0.9rem", marginTop: 1 }}>✓</span>
             <span style={{ fontSize: "0.82rem", color: "rgba(255,255,255,.7)" }}>{r}</span>
@@ -309,7 +314,8 @@ function PlanoCard({ plano, onAtivar }) {
   );
 }
 
-function IAPlusCard({ onAtivar }) {
+interface IAPlusCardProps { onAtivar: (p: any) => void; }
+function IAPlusCard({ onAtivar }: IAPlusCardProps) {
   const [qtd, setQtd] = useState(100);
   const total = (qtd * IA_PLUS.precoPorAtendimento).toFixed(2);
 
@@ -490,7 +496,7 @@ export default function PlanosPage() {
   const [loading, setLoading] = useState(false);
   const [sucesso, setSucesso] = useState(false);
 
-  const ativar = (item) => {
+  const ativar = (item: any) => {
     if (!userData?.uid) {
       navigate("/lojista/login");
       return;
@@ -528,8 +534,8 @@ export default function PlanosPage() {
             ativo: true,
           });
         }
-      } else if (userData.lojaId) {
-        const lojaRef = doc(db, "lojas", userData.lojaId);
+      } else if ((userData as any).lojaId) {
+        const lojaRef = doc(db, "lojas", (userData as any).lojaId);
         if (isAddon) {
           await updateDoc(lojaRef, {
             addonIA: true,
@@ -567,10 +573,10 @@ export default function PlanosPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080412", fontFamily: "'Outfit', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Outfit', sans-serif" }}>
 
       {/* Header */}
-      <div style={{ background: "linear-gradient(135deg, #0f0618 0%, #1a0530 100%)", borderBottom: "1px solid rgba(245,197,24,.15)", padding: "24px 16px" }}>
+      <div style={{ background: "linear-gradient(135deg, var(--bg) 0%, var(--bg2) 100%)", borderBottom: "1px solid rgba(245,197,24,.15)", padding: "24px 16px" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", textAlign: "center" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 8 }}>
             <span style={{ fontSize: "2rem" }}>💳</span>
@@ -641,7 +647,7 @@ export default function PlanosPage() {
 
       {/* Card IA Plus */}
       <div style={{ maxWidth: 420, margin: "0 auto", padding: "0 16px 48px" }}>
-        <IAPlusCard addonIA={userData?.addonIA} onAtivar={ativar} />
+        <IAPlusCard onAtivar={ativar} />
       </div>
 
       {/* Como funciona */}

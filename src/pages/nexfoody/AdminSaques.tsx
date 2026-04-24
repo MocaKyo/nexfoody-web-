@@ -92,7 +92,7 @@ export default function AdminSaques() {
   const fmt = (v: number) => `R$ ${v.toFixed(2).replace(".", ",")}`;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080412", fontFamily: "'Outfit',sans-serif", paddingBottom: 40 }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Outfit',sans-serif", paddingBottom: 40 }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
       {/* ── HEADER ──────────────────────────────────────────── */}

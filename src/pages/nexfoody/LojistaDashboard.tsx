@@ -200,14 +200,14 @@ export default function LojistaDashboard() {
   };
 
   if (loadingLoja) return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#080412" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}>
       <div style={{ width: 36, height: 36, border: "3px solid rgba(245,197,24,0.3)", borderTop: "3px solid #f5c518", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
   if (!userData?.lojistaOf) return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, background: "#080412", textAlign: "center" }}>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, background: "var(--bg)", textAlign: "center" }}>
       <div style={{ fontSize: "3.5rem", marginBottom: 16 }}>🏪</div>
       <h2 style={{ fontFamily: "'Fraunces', serif", color: "#f5c518", marginBottom: 8, fontSize: "1.5rem" }}>Nenhuma loja ainda</h2>
       <p style={{ color: "rgba(255,255,255,0.45)", marginBottom: 28, fontSize: "0.88rem" }}>Crie sua loja e comece a vender na maior rede social de delivery do Brasil.</p>
@@ -220,7 +220,7 @@ export default function LojistaDashboard() {
   const slug = userData.lojistaOf;
 
   return (
-    <div style={{ background: "#080412", minHeight: "100vh", fontFamily: "'Outfit', sans-serif", paddingBottom: 90, width: "100%" }}>
+    <div style={{ background: "var(--bg)", minHeight: "100vh", fontFamily: "'Outfit', sans-serif", paddingBottom: 90, width: "100%" }}>
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.85)}}

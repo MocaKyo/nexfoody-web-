@@ -211,14 +211,14 @@ export default function AdminLojasAnalytics() {
 
   if (carregando) {
     return (
-      <div style={{ minHeight: "100vh", background: "#080412", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ color: "rgba(255,255,255,.4)", fontSize: "0.85rem" }}>Carregando dados...</div>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080412", fontFamily: "'Outfit',sans-serif", paddingBottom: 48 }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Outfit',sans-serif", paddingBottom: 48 }}>
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}`}</style>
 
       {/* HEADER */}

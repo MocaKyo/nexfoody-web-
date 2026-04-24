@@ -176,7 +176,7 @@ export default function ComoFunciona() {
   const secao = SECOES.find(s => s.id === secaoAtiva) || SECOES[0];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080412", fontFamily: "'Outfit',sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Outfit',sans-serif" }}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
       {/* ── HEADER ──────────────────────────────────────────── */}

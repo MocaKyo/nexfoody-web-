@@ -997,7 +997,7 @@ try {
       </div>
 
       {/* Botão finalizar fixo */}
-      <div style={{ position: "fixed", bottom: 60, left: 0, right: 0, padding: "10px 16px 12px", background: "rgba(10,4,20,0.95)", backdropFilter: "blur(10px)", borderTop: "1px solid var(--border)", zIndex: 50 }}>
+      <div style={{ position: "fixed", bottom: 60, left: 0, right: 0, padding: "10px 16px 12px", background: "var(--bg2)", backdropFilter: "blur(10px)", borderTop: "1px solid var(--border)", zIndex: 50 }}>
         <button onClick={handleFinalizar} disabled={loading || loadingChat || items.length === 0} style={{
           width: "100%", padding: "15px",
           background: items.length === 0 ? "var(--bg3)" : "var(--loja-cor-primaria)",
